@@ -4,6 +4,7 @@ import { LoginPayload, RegisterPayload } from './types';
 
 export const authService = {
   login: async (data: LoginPayload): Promise<AuthResponse> => {
+    console.log('data ==== ,', data);
     const response = await apiClient.post<AuthResponse>(
       '/api/auth/login',
       data,

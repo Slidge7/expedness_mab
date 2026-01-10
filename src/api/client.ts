@@ -1,20 +1,20 @@
 import axios from 'axios';
-import { storage } from '../utils/storage'; // We'll create this next
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = 'http://192.168.0.105:7001'; // Replace with {{ex_url}}
+export const BASE_URL = 'http://192.168.11.106:7001';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 15000,
 });
 
-// Request Interceptor: Auto-attach token
 apiClient.interceptors.request.use(
-  config => {
-    const token = storage.getString('auth.token');
+  async config => {
+    // FIX: Use AsyncStorage directly and await it
+    const token = await AsyncStorage.getItem('auth.token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,14 +23,21 @@ apiClient.interceptors.request.use(
   error => Promise.reject(error),
 );
 
-// Response Interceptor: Handle 401 (Session Expired)
+// Add logging so you can see what's happening in your terminal/flipper
 apiClient.interceptors.response.use(
-  response => response,
+  response => {
+    console.log(
+      `[API Success] ${response.config.method?.toUpperCase()} ${
+        response.config.url
+      }`,
+    );
+    return response;
+  },
   error => {
-    if (error.response?.status === 401) {
-      // Trigger global logout here if needed
-      // useAuthStore.getState().logout();
-    }
+    console.error(
+      `[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
+      error.response?.data || error.message,
+    );
     return Promise.reject(error);
   },
 );

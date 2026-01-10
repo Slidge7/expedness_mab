@@ -11,55 +11,41 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { authService } from '../api/authService';
-import apiClient from '../../../api/client';
 import { theme } from '../../../theme';
 
 // REDUX IMPORTS
 import { useAppDispatch } from '../../../store/hooks';
 import { loginSuccess } from '../../../store/authSlice';
 
-export const LoginScreen = () => {
-  const navigation = useNavigation<any>();
+export const RegisterScreen = () => {
+  const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please enter username and password');
+  const handleRegister = async () => {
+    if (!username || !email || !password) {
+      Alert.alert('Error', 'Please fill all fields');
       return;
     }
 
     setLoading(true);
     try {
-      // 1. API Call
-      const data = await authService.login({ username, password });
+      // 1. Register API Call
+      const data = await authService.register({ username, email, password });
 
-      // 2. Dispatch to Redux (Updates State + Saves to Storage)
+      // 2. Dispatch Login Success immediately (Skip login screen)
       await dispatch(loginSuccess(data));
-
-      // Navigation happens automatically via AppNavigator
     } catch (error: any) {
-      console.log('Login Error:', error);
       const msg =
-        error.response?.status === 401
-          ? 'Invalid Username or Password'
-          : 'Network Error. Check your connection.';
-      Alert.alert('Login Failed', msg);
+        error.response?.data?.message ||
+        'Registration failed. Try a different username.';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleTestConnection = async () => {
-    try {
-      console.log('Testing connection...');
-      const response = await apiClient.get('/api/auth/test');
-      Alert.alert('✅ Connection OK', `Backend says: "${response.data}"`);
-    } catch (error: any) {
-      Alert.alert('❌ Connection Failed', error.message || 'Unknown error');
     }
   };
 
@@ -67,8 +53,8 @@ export const LoginScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
         <View style={styles.header}>
-          <Text style={styles.title}>Expedness ERP</Text>
-          <Text style={styles.subtitle}>Sign in to your workspace</Text>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join Expedness ERP</Text>
         </View>
 
         <View style={styles.form}>
@@ -77,8 +63,16 @@ export const LoginScreen = () => {
             style={styles.input}
             value={username}
             onChangeText={setUsername}
-            placeholder="jdo2e"
             autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
           />
 
           <Text style={styles.label}>Password</Text>
@@ -87,40 +81,27 @@ export const LoginScreen = () => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="••••••••"
           />
 
           <TouchableOpacity
             style={styles.button}
-            onPress={handleLogin}
+            onPress={handleRegister}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.buttonText}>Access Dashboard</Text>
+              <Text style={styles.buttonText}>Register</Text>
             )}
           </TouchableOpacity>
 
-          {/* Navigation to Register */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('Register')}
+            onPress={() => navigation.goBack()}
             style={styles.linkButton}
           >
             <Text style={styles.linkText}>
-              Don't have an account?{' '}
-              <Text style={styles.linkBold}>Sign Up</Text>
+              Back to <Text style={styles.linkBold}>Login</Text>
             </Text>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          {/* Backend Test Button */}
-          <TouchableOpacity
-            style={styles.testButton}
-            onPress={handleTestConnection}
-          >
-            <Text style={styles.testButtonText}>⚠️ RUN BACKEND TEST</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -171,22 +152,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.s,
   },
   buttonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
-  linkButton: { marginTop: theme.spacing.m, alignItems: 'center' },
+  linkButton: { marginTop: 15, alignItems: 'center' },
   linkText: { color: theme.colors.textSecondary, fontSize: 14 },
   linkBold: { color: theme.colors.primary, fontWeight: '700' },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-    marginVertical: theme.spacing.m,
-  },
-  testButton: {
-    height: 40,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    borderRadius: theme.radius,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  testButtonText: { color: '#D97706', fontWeight: '700', fontSize: 12 },
 });
