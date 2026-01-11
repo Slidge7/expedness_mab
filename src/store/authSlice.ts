@@ -4,7 +4,7 @@ import { AuthResponse } from '../features/auth/types';
 
 // Define the State Shape
 interface AuthState {
-  user: { username: string; email?: string } | null;
+  user: { username: string; email?: string; id?: number } | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -41,7 +41,11 @@ export const loginSuccess = createAsyncThunk(
     await AsyncStorage.setItem('auth.token', data.token);
     await AsyncStorage.setItem(
       'auth.user',
-      JSON.stringify({ username: data.username, email: data.email }),
+      JSON.stringify({
+        username: data.username,
+        email: data.email,
+        id: data.id,
+      }),
     );
     return data;
   },
@@ -74,6 +78,7 @@ const authSlice = createSlice({
       state.user = {
         username: action.payload.username,
         email: action.payload.email,
+        id: action.payload.id,
       };
       state.token = action.payload.token;
       state.isAuthenticated = true;

@@ -1,54 +1,72 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../../../theme';
-
-// REDUX IMPORTS
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { logoutUser } from '../../../store/authSlice';
+import { fetchTransactions } from '../../../store/transactionSlice';
+import { theme } from '../../../theme';
 
 export const DashboardScreen = () => {
   const dispatch = useAppDispatch();
-  const user = useAppSelector(state => state.auth.user);
+  const { user } = useAppSelector(state => state.auth);
+  const { totalBalance, items } = useAppSelector(state => state.transactions);
 
-  const handleLogout = () => {
-    dispatch(logoutUser());
-  };
+  useEffect(() => {
+    dispatch(fetchTransactions());
+  }, [dispatch]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome back,</Text>
-        <Text style={styles.username}>{user?.username || 'User'}</Text>
+        <Text style={styles.welcome}>Hello, {user?.username}</Text>
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Total Balance</Text>
+          <Text
+            style={[
+              styles.balanceAmount,
+              { color: totalBalance >= 0 ? '#FFF' : '#FECACA' },
+            ]}
+          >
+            ${totalBalance.toLocaleString()}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.info}>Dashboard is under construction 🚧</Text>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Transactions</Text>
+          <Text style={styles.statValue}>{items.length}</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Status</Text>
+          <Text style={[styles.statValue, { color: '#10B981' }]}>Active</Text>
+        </View>
       </View>
-    </SafeAreaView>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  header: {
+    backgroundColor: theme.colors.primary,
+    padding: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  welcome: { color: 'rgba(255,255,255,0.8)', fontSize: 16, marginBottom: 10 },
+  balanceCard: { marginTop: 10 },
+  balanceLabel: { color: '#FFF', fontSize: 14, opacity: 0.9 },
+  balanceAmount: { color: '#FFF', fontSize: 36, fontWeight: '800' },
+  statsRow: { flexDirection: 'row', padding: 20, gap: 15, marginTop: -20 },
+  statBox: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.l,
+    backgroundColor: '#FFF',
+    padding: 20,
+    borderRadius: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
-  header: { marginBottom: theme.spacing.xl },
-  welcomeText: { fontSize: 16, color: theme.colors.textSecondary },
-  username: { fontSize: 32, fontWeight: '700', color: theme.colors.primary },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  info: { fontSize: 16, color: theme.colors.textSecondary, marginBottom: 40 },
-  logoutButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    backgroundColor: '#EF4444',
-    borderRadius: theme.radius,
-  },
-  logoutText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+  statLabel: { color: '#64748B', fontSize: 12, marginBottom: 5 },
+  statValue: { fontSize: 20, fontWeight: '700', color: '#1E293B' },
 });
