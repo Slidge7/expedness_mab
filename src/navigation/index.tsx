@@ -16,6 +16,9 @@ import { CreateLocationScreen } from '../features/locations/screens/CreateLocati
 import { TransactionListScreen } from '../features/transactions/screens/TransactionListScreen';
 import { CreateTransactionScreen } from '../features/transactions/screens/CreateTransactionScreen';
 import { MissionListScreen } from '../features/missions/api/screens/MissionListScreen';
+import { ItemListScreen } from '../features/items/screens/ItemListScreen';
+import { CreateItemScreen } from '../features/items/screens/CreateItemScreen';
+import { ProfileScreen } from '../features/auth/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -50,6 +53,19 @@ const MainTabs = () => (
       name="Transactions"
       component={TransactionListScreen}
     />
+    <Tab.Screen
+      options={{ title: 'Items' }}
+      name="Items"
+      component={ItemListScreen}
+    />
+    <Tab.Screen
+      name="Profile"
+      component={ProfileScreen}
+      options={{
+        title: 'Settings',
+        headerShown: false, // Profile has its own SafeAreaView
+      }}
+    />
   </Tab.Navigator>
 );
 
@@ -76,6 +92,11 @@ export const AppNavigator = () => {
               name="CreateTransaction"
               component={CreateTransactionScreen}
               options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+              name="CreateItem"
+              component={CreateItemScreen}
+              options={{ presentation: 'modal', title: 'New Item' }}
             />
           </Stack.Group>
         ) : (
