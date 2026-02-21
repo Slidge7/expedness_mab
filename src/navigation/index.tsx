@@ -19,19 +19,38 @@ import { MissionListScreen } from '../features/missions/api/screens/MissionListS
 import { ItemListScreen } from '../features/items/screens/ItemListScreen';
 import { CreateItemScreen } from '../features/items/screens/CreateItemScreen';
 import { ProfileScreen } from '../features/auth/screens/ProfileScreen';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// This is the "Authenticated" part of the app
 const MainTabs = () => (
   <Tab.Navigator
-    screenOptions={{
+    screenOptions={({ route }) => ({
       tabBarActiveTintColor: theme.colors.primary,
       tabBarInactiveTintColor: 'gray',
       headerStyle: { backgroundColor: theme.colors.primary },
       headerTitleStyle: { color: '#fff' },
-    }}
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+
+        if (route.name === 'Dashboard') {
+          iconName = focused ? 'home' : 'home-outline';
+        } else if (route.name === 'Missions') {
+          iconName = focused ? 'list' : 'list-outline';
+        } else if (route.name === 'Locations') {
+          iconName = focused ? 'location' : 'location-outline';
+        } else if (route.name === 'Transactions') {
+          iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
+        } else if (route.name === 'Items') {
+          iconName = focused ? 'cube' : 'cube-outline';
+        } else if (route.name === 'Profile') {
+          iconName = focused ? 'person' : 'person-outline';
+        }
+
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+    })}
   >
     <Tab.Screen
       name="Dashboard"
@@ -39,9 +58,9 @@ const MainTabs = () => (
       options={{ title: 'Home' }}
     />
     <Tab.Screen
-      options={{ title: 'Missions' }}
       name="Missions"
       component={MissionListScreen}
+      options={{ title: 'Missions' }}
     />
     <Tab.Screen
       name="Locations"
@@ -49,22 +68,19 @@ const MainTabs = () => (
       options={{ title: 'Locations' }}
     />
     <Tab.Screen
-      options={{ title: 'Transactions' }}
       name="Transactions"
       component={TransactionListScreen}
+      options={{ title: 'Transactions' }}
     />
     <Tab.Screen
-      options={{ title: 'Items' }}
       name="Items"
       component={ItemListScreen}
+      options={{ title: 'Items' }}
     />
     <Tab.Screen
       name="Profile"
       component={ProfileScreen}
-      options={{
-        title: 'Settings',
-        headerShown: false, // Profile has its own SafeAreaView
-      }}
+      options={{ title: 'Settings', headerShown: false }}
     />
   </Tab.Navigator>
 );
