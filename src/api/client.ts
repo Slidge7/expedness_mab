@@ -1,21 +1,28 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = 'http://192.168.1.64:7001';
+export const BASE_URL = 'http://192.168.1.66:7001';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
+  // NO global Content-Type header
 });
 
 apiClient.interceptors.request.use(
   async config => {
-    // Automatically grab token from storage for every request
+    // Add JWT token
     const token = await AsyncStorage.getItem('auth.token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // CRITICAL: If Content-Type is undefined, delete it
+    // This lets Axios auto-set it for FormData
+    if (config.headers['Content-Type'] === undefined) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   error => Promise.reject(error),

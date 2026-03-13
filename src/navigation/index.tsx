@@ -8,17 +8,19 @@ import { LoginScreen } from '../features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../features/auth/screens/RegisterScreen';
 import { DashboardScreen } from '../features/dashboard/screens/DashboardScreen';
 import { LocationListScreen } from '../features/locations/screens/LocationListScreen';
-
-// Redux
-import { useAppSelector } from '../store/hooks';
-import { theme } from '../theme';
 import { CreateLocationScreen } from '../features/locations/screens/CreateLocationScreen';
 import { TransactionListScreen } from '../features/transactions/screens/TransactionListScreen';
 import { CreateTransactionScreen } from '../features/transactions/screens/CreateTransactionScreen';
 import { MissionListScreen } from '../features/missions/api/screens/MissionListScreen';
 import { ItemListScreen } from '../features/items/screens/ItemListScreen';
 import { CreateItemScreen } from '../features/items/screens/CreateItemScreen';
+import { EditItemScreen } from '../features/items/screens/EditItemScreen';
+import { ItemDetailScreen } from '../features/items/screens/ItemDetailScreen';
 import { ProfileScreen } from '../features/auth/screens/ProfileScreen';
+
+// Redux
+import { useAppSelector } from '../store/hooks';
+import { theme } from '../theme';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Stack = createNativeStackNavigator();
@@ -95,6 +97,8 @@ export const AppNavigator = () => {
           // When logged in, show the Tab System
           <Stack.Group>
             <Stack.Screen name="Main" component={MainTabs} />
+
+            {/* Location Screens */}
             <Stack.Screen
               name="CreateLocation"
               component={CreateLocationScreen}
@@ -104,15 +108,53 @@ export const AppNavigator = () => {
                 headerShown: true,
               }}
             />
+
+            {/* Transaction Screens */}
             <Stack.Screen
               name="CreateTransaction"
               component={CreateTransactionScreen}
-              options={{ presentation: 'modal' }}
+              options={{
+                presentation: 'modal',
+                title: 'New Transaction',
+                headerShown: true,
+              }}
             />
+
+            {/* Item Screens */}
             <Stack.Screen
               name="CreateItem"
               component={CreateItemScreen}
-              options={{ presentation: 'modal', title: 'New Item' }}
+              options={{
+                presentation: 'modal',
+                title: 'New Item',
+                headerShown: true,
+                headerStyle: { backgroundColor: theme.colors.primary },
+                headerTitleStyle: { color: '#fff' },
+                headerTintColor: '#fff',
+              }}
+            />
+            <Stack.Screen
+              name="ItemDetail"
+              component={ItemDetailScreen}
+              options={{
+                title: 'Item Details',
+                headerShown: true,
+                headerStyle: { backgroundColor: theme.colors.primary },
+                headerTitleStyle: { color: '#fff' },
+                headerTintColor: '#fff',
+              }}
+            />
+            <Stack.Screen
+              name="EditItem"
+              component={EditItemScreen}
+              options={{
+                presentation: 'modal',
+                title: 'Edit Item',
+                headerShown: true,
+                headerStyle: { backgroundColor: theme.colors.primary },
+                headerTitleStyle: { color: '#fff' },
+                headerTintColor: '#fff',
+              }}
             />
           </Stack.Group>
         ) : (

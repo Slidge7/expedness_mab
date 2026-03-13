@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,31 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useAppDispatch } from '../../../store/hooks';
-import { createItem } from '../../../store/itemSlice';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import {
+  fetchItemById,
+  updateItem,
+  uploadItemImage,
+  deleteItemImage,
+} from '../../../store/itemSlice';
 import { theme } from '../../../theme';
 import { launchImageLibrary } from 'react-native-image-picker';
 
-export const CreateItemScreen = () => {
+export const EditItemScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
-  const [loading, setLoading] = useState(false);
+
+  const { selectedItem, loading } = useAppSelector(state => state.items);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingImage, setDeletingImage] = useState(false);
+
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tempImageFile, setTempImageFile] = useState<any>(null);
+  const [hasExistingImage, setHasExistingImage] = useState(false);
+  const [imageChanged, setImageChanged] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -38,6 +51,35 @@ export const CreateItemScreen = () => {
     name?: string;
     unitPrice?: string;
   }>({});
+
+  const itemId = route.params?.itemId;
+
+  useEffect(() => {
+    if (itemId) {
+      dispatch(fetchItemById(itemId));
+    }
+  }, [itemId, dispatch]);
+
+  useEffect(() => {
+    if (selectedItem) {
+      setForm({
+        name: selectedItem.name,
+        description: selectedItem.description || '',
+        unitPrice: selectedItem.unitPrice.toString(),
+        category: selectedItem.category || '',
+        type: selectedItem.type,
+        unit: selectedItem.unit || 'pcs',
+        active: selectedItem.active,
+      });
+      if (selectedItem.imageMedium) {
+        setImageUri(`data:image/jpeg;base64,${selectedItem.imageMedium}`);
+        setHasExistingImage(true);
+      } else {
+        setImageUri(null);
+        setHasExistingImage(false);
+      }
+    }
+  }, [selectedItem]);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -67,9 +109,9 @@ export const CreateItemScreen = () => {
         return;
       }
       if (result.assets?.[0]) {
-        const asset = result.assets[0];
-        setImageUri(asset.uri!);
-        setTempImageFile(asset);
+        setImageUri(result.assets[0].uri!);
+        setTempImageFile(result.assets[0]);
+        setImageChanged(true);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -77,12 +119,50 @@ export const CreateItemScreen = () => {
     }
   };
 
+  const handleRemoveImage = async () => {
+    if (hasExistingImage && !imageChanged) {
+      Alert.alert(
+        'Remove Image',
+        'Are you sure you want to remove this image?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              setDeletingImage(true);
+              try {
+                await dispatch(deleteItemImage(itemId)).unwrap();
+                setImageUri(null);
+                setHasExistingImage(false);
+                Alert.alert('Success', 'Image removed');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to remove image');
+              } finally {
+                setDeletingImage(false);
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      setImageUri(
+        hasExistingImage && selectedItem?.imageMedium
+          ? `data:image/jpeg;base64,${selectedItem.imageMedium}`
+          : null,
+      );
+      setTempImageFile(null);
+      setImageChanged(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!validateForm()) return;
-    setLoading(true);
+    setSaving(true);
     try {
       await dispatch(
-        createItem({
+        updateItem({
+          id: itemId,
           data: {
             name: form.name.trim(),
             description: form.description.trim() || undefined,
@@ -92,33 +172,43 @@ export const CreateItemScreen = () => {
             unit: form.unit.trim() || undefined,
             active: form.active,
           },
-          imageFile: tempImageFile ?? undefined,
         }),
       ).unwrap();
 
-      Alert.alert('Success', 'Item created successfully!', [
+      if (imageChanged && tempImageFile) {
+        setUploadingImage(true);
+        await dispatch(
+          uploadItemImage({ id: itemId, imageFile: tempImageFile }),
+        ).unwrap();
+      }
+
+      Alert.alert('Success', 'Item updated successfully!', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error: any) {
-      console.error('[CreateItemScreen] Error:', error);
-      Alert.alert('Error', error?.message || 'Failed to create item');
+      console.error('Error updating item:', error);
+      Alert.alert('Error', error?.message || 'Failed to update item');
     } finally {
-      setLoading(false);
+      setSaving(false);
+      setUploadingImage(false);
     }
   };
 
-  const removeImage = () => {
-    setImageUri(null);
-    setTempImageFile(null);
-  };
+  if (loading || !selectedItem) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Create New Item</Text>
+        <Text style={styles.headerTitle}>Edit Item</Text>
         <Text style={styles.headerSubtitle}>
-          Add a new item to your inventory
+          Update item information and details
         </Text>
       </View>
 
@@ -131,9 +221,14 @@ export const CreateItemScreen = () => {
               <Image source={{ uri: imageUri }} style={styles.imagePreview} />
               <TouchableOpacity
                 style={styles.removeImageBtn}
-                onPress={removeImage}
+                onPress={handleRemoveImage}
+                disabled={deletingImage}
               >
-                <Text style={styles.removeImageText}>✕</Text>
+                {deletingImage ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.removeImageText}>✕</Text>
+                )}
               </TouchableOpacity>
             </View>
           ) : (
@@ -292,23 +387,25 @@ export const CreateItemScreen = () => {
         <TouchableOpacity
           style={styles.cancelBtn}
           onPress={() => navigation.goBack()}
-          disabled={loading}
+          disabled={saving}
         >
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.saveBtn, loading && styles.saveBtnDisabled]}
+          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
           onPress={handleSave}
-          disabled={loading}
+          disabled={saving}
         >
-          {loading ? (
+          {saving || uploadingImage ? (
             <View style={styles.loadingButtonContent}>
               <ActivityIndicator size="small" color="#FFF" />
-              <Text style={styles.saveText}>Creating...</Text>
+              <Text style={styles.saveText}>
+                {uploadingImage ? 'Uploading...' : 'Saving...'}
+              </Text>
             </View>
           ) : (
-            <Text style={styles.saveText}>Create Item</Text>
+            <Text style={styles.saveText}>Save Changes</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -324,6 +421,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     marginBottom: 24,
