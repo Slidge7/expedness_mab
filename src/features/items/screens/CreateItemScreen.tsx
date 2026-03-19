@@ -10,12 +10,13 @@ import {
   Switch,
   Image,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch } from '../../../store/hooks';
 import { createItem } from '../../../store/itemSlice';
 import { theme } from '../../../theme';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 
 export const CreateItemScreen = () => {
   const navigation = useNavigation();
@@ -53,27 +54,47 @@ export const CreateItemScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const pickImage = async () => {
+  const pickImage = async (source: 'library' | 'camera') => {
     try {
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        quality: 0.8,
+      const options = {
+        mediaType: 'photo' as const,
+        quality: 0.8 as const,
         selectionLimit: 1,
         includeBase64: false,
-      });
+      };
+
+      const result =
+        source === 'camera'
+          ? await launchCamera(options)
+          : await launchImageLibrary(options);
+
       if (result.didCancel) return;
       if (result.errorCode) {
         Alert.alert('Error', result.errorMessage || 'Failed to pick image');
         return;
       }
       if (result.assets?.[0]) {
-        const asset = result.assets[0];
-        setImageUri(asset.uri!);
-        setTempImageFile(asset);
+        setImageUri(result.assets[0].uri!);
+        setTempImageFile(result.assets[0]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleImagePress = () => {
+    if (Platform.OS === 'web') {
+      const choice = window.confirm(
+        'Click OK to use Camera, Cancel to pick from Gallery',
+      );
+      pickImage(choice ? 'camera' : 'library');
+    } else {
+      Alert.alert('Select Image', 'Choose an option', [
+        { text: 'Camera', onPress: () => pickImage('camera') },
+        { text: 'Gallery', onPress: () => pickImage('library') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
     }
   };
 
@@ -114,7 +135,6 @@ export const CreateItemScreen = () => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Create New Item</Text>
         <Text style={styles.headerSubtitle}>
@@ -122,7 +142,6 @@ export const CreateItemScreen = () => {
         </Text>
       </View>
 
-      {/* Image Management */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Item Image</Text>
         <View style={styles.imageContainer}>
@@ -142,7 +161,10 @@ export const CreateItemScreen = () => {
               <Text style={styles.imagePlaceholderText}>No image</Text>
             </View>
           )}
-          <TouchableOpacity style={styles.changeImageBtn} onPress={pickImage}>
+          <TouchableOpacity
+            style={styles.changeImageBtn}
+            onPress={handleImagePress}
+          >
             <Text style={styles.changeImageText}>
               {imageUri ? '📸 Change Image' : '📸 Add Image'}
             </Text>
@@ -150,7 +172,6 @@ export const CreateItemScreen = () => {
         </View>
       </View>
 
-      {/* Basic Information */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Basic Information</Text>
 
@@ -209,7 +230,6 @@ export const CreateItemScreen = () => {
         </View>
       </View>
 
-      {/* Type Selection */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Transaction Type</Text>
         <View style={styles.typeContainer}>
@@ -245,7 +265,6 @@ export const CreateItemScreen = () => {
         </View>
       </View>
 
-      {/* Additional Details */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Additional Details</Text>
 
@@ -287,7 +306,6 @@ export const CreateItemScreen = () => {
         </View>
       </View>
 
-      {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={styles.cancelBtn}
@@ -322,87 +340,96 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 16,
-    paddingTop: 16,
   },
   header: {
-    marginBottom: 24,
+    padding: 24,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
+    color: '#1E293B',
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#64748B',
+    marginTop: 4,
   },
   section: {
-    marginBottom: 24,
+    backgroundColor: '#FFF',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0F172A',
-    marginBottom: 12,
+    color: '#1E293B',
+    marginBottom: 16,
   },
   imageContainer: {
+    alignItems: 'center',
     gap: 12,
   },
   imagePreviewContainer: {
     position: 'relative',
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#E2E8F0',
-    height: 200,
   },
   imagePreview: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: 120,
+    height: 120,
+    borderRadius: 12,
   },
   removeImageBtn: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 20,
-    width: 32,
-    height: 32,
+    top: -8,
+    right: -8,
+    backgroundColor: '#EF4444',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   removeImageText: {
     color: '#FFF',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '700',
   },
   imagePlaceholder: {
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
+    width: 120,
     height: 120,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
   },
   imagePlaceholderIcon: {
-    fontSize: 40,
+    fontSize: 32,
   },
   imagePlaceholderText: {
+    fontSize: 12,
     color: '#94A3B8',
-    fontSize: 14,
+    marginTop: 4,
   },
   changeImageBtn: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
   },
   changeImageText: {
-    color: '#FFF',
     fontSize: 14,
-    fontWeight: '600',
+    color: '#475569',
+    fontWeight: '500',
   },
   inputGroup: {
     marginBottom: 16,
@@ -410,49 +437,46 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#334155',
+    color: '#374151',
     marginBottom: 6,
   },
   required: {
     color: '#EF4444',
   },
   input: {
-    backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
+    padding: 12,
+    fontSize: 15,
+    color: '#1E293B',
+    backgroundColor: '#F8FAFC',
   },
   inputError: {
     borderColor: '#EF4444',
   },
   textArea: {
+    height: 80,
     textAlignVertical: 'top',
-    minHeight: 80,
   },
   priceInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 8,
+    backgroundColor: '#F8FAFC',
   },
   currencySymbol: {
     paddingLeft: 12,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0F172A',
+    fontSize: 15,
+    color: '#64748B',
   },
   priceInput: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
+    padding: 12,
+    fontSize: 15,
+    color: '#1E293B',
   },
   errorText: {
     color: '#EF4444',
@@ -468,10 +492,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
     gap: 6,
   },
   typeBtnActive: {
@@ -484,24 +508,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   typeIcon: {
-    fontSize: 18,
-    color: '#94A3B8',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#64748B',
   },
   typeText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#64748B',
   },
   switchContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    justifyContent: 'space-between',
   },
   switchSubtext: {
     fontSize: 12,
@@ -510,42 +529,41 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
+    paddingHorizontal: 16,
     gap: 12,
-    marginBottom: 12,
+    marginTop: 8,
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 12,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.primary,
-    borderRadius: 8,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   cancelText: {
-    color: theme.colors.primary,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
+    color: '#64748B',
   },
   saveBtn: {
-    flex: 1,
+    flex: 2,
+    padding: 16,
+    borderRadius: 12,
     backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   saveBtnDisabled: {
     opacity: 0.6,
   },
   saveText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
   },
   loadingButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
 });

@@ -5,6 +5,7 @@ import {
   ItemDTO,
   CreateItemData,
 } from '../features/items/api/itemService';
+import { Platform } from 'react-native';
 
 interface ItemState {
   items: ItemDTO[];
@@ -35,22 +36,42 @@ const initialState: ItemState = {
  */
 function buildItemFormData(data: object, imageFile?: any): FormData {
   const formData = new FormData();
-
   const json = JSON.stringify(data);
-  const base64 = btoa(unescape(encodeURIComponent(json))); // handles unicode
 
-  formData.append('item', {
-    uri: `data:application/json;base64,${base64}`,
-    type: 'application/json',
-    name: 'item.json',
-  } as any);
+  if (Platform.OS === 'web') {
+    // Web: use real Blob objects
+    const jsonBlob = new Blob([json], { type: 'application/json' });
+    formData.append('item', jsonBlob, 'item.json');
 
-  if (imageFile) {
-    formData.append('image', {
-      uri: imageFile.uri,
-      type: imageFile.type || 'image/jpeg',
-      name: imageFile.fileName || 'item-image.jpg',
+    if (imageFile) {
+      if (imageFile.originalFile) {
+        // originalFile is the real File object we stored in the stub
+        formData.append(
+          'image',
+          imageFile.originalFile,
+          imageFile.fileName || 'item-image.jpg',
+        );
+      } else {
+        // fallback: fetch the blob from the object URL
+        console.warn('No originalFile found on imageFile');
+      }
+    }
+  } else {
+    // Android/iOS: use React Native's { uri, type, name } trick
+    const base64 = btoa(unescape(encodeURIComponent(json)));
+    formData.append('item', {
+      uri: `data:application/json;base64,${base64}`,
+      type: 'application/json',
+      name: 'item.json',
     } as any);
+
+    if (imageFile) {
+      formData.append('image', {
+        uri: imageFile.uri,
+        type: imageFile.type || 'image/jpeg',
+        name: imageFile.fileName || 'item-image.jpg',
+      } as any);
+    }
   }
 
   return formData;
@@ -143,11 +164,22 @@ export const uploadItemImage = createAsyncThunk(
   ) => {
     try {
       const formData = new FormData();
-      formData.append('image', {
-        uri: imageFile.uri,
-        type: imageFile.type || 'image/jpeg',
-        name: imageFile.fileName || 'item-image.jpg',
-      } as any);
+
+      if (Platform.OS === 'web') {
+        if (imageFile.originalFile) {
+          formData.append(
+            'image',
+            imageFile.originalFile,
+            imageFile.fileName || 'item-image.jpg',
+          );
+        }
+      } else {
+        formData.append('image', {
+          uri: imageFile.uri,
+          type: imageFile.type || 'image/jpeg',
+          name: imageFile.fileName || 'item-image.jpg',
+        } as any);
+      }
 
       const response = await apiClient.post<ItemDTO>(
         `/api/items/${id}/upload-image`,
@@ -156,10 +188,6 @@ export const uploadItemImage = createAsyncThunk(
       );
       return response.data;
     } catch (error: any) {
-      console.error(
-        '[uploadItemImage] error:',
-        error.response?.data ?? error.message,
-      );
       return rejectWithValue(
         error.response?.data?.message || 'Failed to upload image',
       );
