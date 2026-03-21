@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { Platform, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
@@ -26,6 +27,29 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// Web-only back button for headers
+const WebBackButton = () => {
+  const navigation = useNavigation();
+  if (Platform.OS !== 'web') return null;
+  return (
+    <TouchableOpacity
+      style={styles.backBtn}
+      onPress={() => navigation.goBack()}
+    >
+      <Text style={styles.backText}>←</Text>
+    </TouchableOpacity>
+  );
+};
+
+// Shared header options for screens with back button
+const headerWithBack = {
+  headerShown: true,
+  headerStyle: { backgroundColor: theme.colors.primary },
+  headerTitleStyle: { color: '#fff' },
+  headerTintColor: '#fff',
+  headerLeft: () => <WebBackButton />,
+};
+
 const MainTabs = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -35,7 +59,6 @@ const MainTabs = () => (
       headerTitleStyle: { color: '#fff' },
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-
         if (route.name === 'Dashboard') {
           iconName = focused ? 'home' : 'home-outline';
         } else if (route.name === 'Missions') {
@@ -49,7 +72,6 @@ const MainTabs = () => (
         } else if (route.name === 'Profile') {
           iconName = focused ? 'person' : 'person-outline';
         }
-
         return <Ionicons name={iconName} size={size} color={color} />;
       },
     })}
@@ -94,71 +116,52 @@ export const AppNavigator = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
-          // When logged in, show the Tab System
           <Stack.Group>
             <Stack.Screen name="Main" component={MainTabs} />
 
-            {/* Location Screens */}
             <Stack.Screen
               name="CreateLocation"
               component={CreateLocationScreen}
               options={{
+                ...headerWithBack,
                 presentation: 'modal',
                 title: 'New Location',
-                headerShown: true,
               }}
             />
-
-            {/* Transaction Screens */}
             <Stack.Screen
               name="CreateTransaction"
               component={CreateTransactionScreen}
               options={{
+                ...headerWithBack,
                 presentation: 'modal',
                 title: 'New Transaction',
-                headerShown: true,
               }}
             />
-
-            {/* Item Screens */}
             <Stack.Screen
               name="CreateItem"
               component={CreateItemScreen}
               options={{
+                ...headerWithBack,
                 presentation: 'modal',
                 title: 'New Item',
-                headerShown: true,
-                headerStyle: { backgroundColor: theme.colors.primary },
-                headerTitleStyle: { color: '#fff' },
-                headerTintColor: '#fff',
               }}
             />
             <Stack.Screen
               name="ItemDetail"
               component={ItemDetailScreen}
-              options={{
-                title: 'Item Details',
-                headerShown: true,
-                headerStyle: { backgroundColor: theme.colors.primary },
-                headerTitleStyle: { color: '#fff' },
-                headerTintColor: '#fff',
-              }}
+              options={{ ...headerWithBack, title: 'Item Details' }}
             />
             <Stack.Screen
               name="EditItem"
               component={EditItemScreen}
               options={{
+                ...headerWithBack,
                 presentation: 'modal',
                 title: 'Edit Item',
-                headerShown: true,
-                headerStyle: { backgroundColor: theme.colors.primary },
-                headerTitleStyle: { color: '#fff' },
-                headerTintColor: '#fff',
               }}
             />
           </Stack.Group>
         ) : (
-          // When logged out, show Auth screens
           <Stack.Group>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
@@ -168,3 +171,16 @@ export const AppNavigator = () => {
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  backBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginLeft: 4,
+  },
+  backText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+});
