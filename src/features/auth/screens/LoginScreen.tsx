@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -57,9 +58,19 @@ export const LoginScreen = () => {
     try {
       console.log('Testing connection...');
       const response = await apiClient.get('/api/auth/test');
-      Alert.alert('✅ Connection OK', `Backend says: "${response.data}"`);
+      if (Platform.OS === 'web') {
+        window.alert(`✅ Connection OK\nBackend says: "${response.data}"`);
+      } else {
+        Alert.alert('✅ Connection OK', `Backend says: "${response.data}"`);
+      }
     } catch (error: any) {
-      Alert.alert('❌ Connection Failed', error.message || 'Unknown error');
+      if (Platform.OS === 'web') {
+        window.alert(
+          `❌ Connection Failed\n${error.message || 'Unknown error'}`,
+        );
+      } else {
+        Alert.alert('❌ Connection Failed', error.message || 'Unknown error');
+      }
     }
   };
 
