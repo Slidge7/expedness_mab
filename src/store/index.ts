@@ -4,6 +4,7 @@ import transactionReducer from './transactionSlice';
 import missionReducer from './missionSlice';
 import itemReducer from './itemSlice';
 import locationReducer from './locationSlice';
+import overviewReducer from './overviewSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     locations: locationReducer,
     items: itemReducer,
     missions: missionReducer,
+    overview: overviewReducer,
   },
   // Middleware is handled automatically by RTK
 });

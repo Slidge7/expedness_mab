@@ -1,3 +1,4 @@
+// src/features/transactions/components/AddItemModal.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -12,6 +13,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useAppSelector } from '../../../store/hooks';
 import { TransactionItemDTO } from '../api/transactionService';
 import { theme } from '../../../theme';
+import { QuantityPicker } from './QuantityPicker';
 
 interface Props {
   visible: boolean;
@@ -26,56 +28,67 @@ export const AddItemModal = ({
   onAdd,
   transactionType,
 }: Props) => {
-  // Get existing Inventory from Redux
   const inventoryItems = useAppSelector(state => state.items.items);
 
-  // Local Form State
+  // Form state — all pre-filled from selected item, user can override
   const [selectedItemId, setSelectedItemId] = useState<number | undefined>(
     undefined,
   );
-  const [category, setCategory] = useState(''); // e.g., FUEL, SUPPLIES
+  const [category, setCategory] = useState('');
   const [reason, setReason] = useState('');
-  const [quantity, setQuantity] = useState('1');
+  const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState('');
 
-  // Reset form when modal opens
+  // Reset form on open
   useEffect(() => {
     if (visible) {
       setSelectedItemId(undefined);
       setCategory('');
       setReason('');
-      setQuantity('1');
+      setQuantity(1);
       setUnitPrice('');
     }
   }, [visible]);
 
-  // When user picks an item from inventory, auto-fill fields
-  const handleItemPick = (id: number) => {
+  // When user selects an item → auto-fill ALL fields from item data
+  // NOTE: On web, @react-native-picker/picker fires onValueChange with a string,
+  // even if the value prop was a number. We normalize here to avoid find() mismatches.
+  const handleItemSelect = (rawId: number | string | undefined) => {
+    const isCustom =
+      rawId === undefined || rawId === 'undefined' || rawId === '';
+    const id = isCustom ? undefined : Number(rawId);
+
     setSelectedItemId(id);
+    if (id === undefined) {
+      // "Custom item" selected — clear fields
+      setCategory('');
+      setReason('');
+      setUnitPrice('');
+      setQuantity(1);
+      return;
+    }
+
     const item = inventoryItems.find(i => i.id === id);
     if (item) {
-      setUnitPrice(item.unitPrice.toString());
-      setCategory(item.category || '');
-      // If it's a known item, we might not need a "reason" every time, but good to keep open
+      setCategory(item.category || item.name || '');
+      setUnitPrice(item.unitPrice?.toString() || '');
+      setReason(item.description || item.reason || '');
+      // quantity stays at 1 by default — user adjusts via scroll picker
     }
   };
 
   const handleSave = () => {
-    if (!quantity || !unitPrice || !category) {
-      alert('Please fill Quantity, Price, and Category');
+    if (!unitPrice || !category) {
+      alert('Please fill in Category and Unit Price.');
       return;
     }
 
     const newItem: TransactionItemDTO = {
-      itemId: selectedItemId, // If undefined, backend creates new item
-      // We don't send 'itemName' in request based on your JSON example, backend infers it or uses generic logic?
-      // *Correction*: Your backend 'createNewItem(itemDTO)' probably needs a name if itemId is null.
-      // Let's assume 'category' maps to name or you add a Name field if you want custom names.
-      // For now, mapping Category as the main identifier if custom.
-      category: category,
-      quantity: parseFloat(quantity),
+      itemId: selectedItemId,
+      category,
+      quantity,
       unitPrice: parseFloat(unitPrice),
-      reason: reason,
+      reason,
       type: transactionType,
     };
 
@@ -83,72 +96,107 @@ export const AddItemModal = ({
     onClose();
   };
 
+  const lineTotal = quantity * (parseFloat(unitPrice) || 0);
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={styles.title}>Add Line Item</Text>
-
-          {/* 1. Pick Existing Item */}
-          <Text style={styles.label}>Select Item (Optional)</Text>
-          <View style={styles.pickerBox}>
-            <Picker
-              selectedValue={selectedItemId}
-              onValueChange={handleItemPick}
-            >
-              <Picker.Item label="-- Create Custom Item --" value={undefined} />
-              {inventoryItems
-                .filter(i => i.active) // Only show active items
-                .map(i => (
-                  <Picker.Item key={i.id} label={i.name} value={i.id} />
-                ))}
-            </Picker>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Add Item</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <Text style={styles.closeX}>✕</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* 2. Manual Fields */}
-          <View style={styles.row}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={styles.label}>Quantity</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={quantity}
-                onChangeText={setQuantity}
-              />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* ── Step 1: Select Item ── */}
+            <Text style={styles.sectionLabel}>SELECT ITEM</Text>
+            <View style={styles.pickerBox}>
+              <Picker
+                selectedValue={selectedItemId}
+                onValueChange={handleItemSelect}
+                style={styles.picker}
+              >
+                <Picker.Item label="+ Custom Item" value={undefined} />
+                {inventoryItems
+                  .filter(i => i.active)
+                  .map(i => (
+                    <Picker.Item key={i.id} label={i.name} value={i.id} />
+                  ))}
+              </Picker>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Unit Price</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={unitPrice}
-                onChangeText={setUnitPrice}
-              />
+
+            {/* ── Step 2: Quantity (drum roll) + Price (editable) ── */}
+            <View style={styles.quantityPriceRow}>
+              {/* Quantity drum picker */}
+              <View style={styles.quantityBlock}>
+                <Text style={styles.fieldLabel}>QUANTITY</Text>
+                <View style={styles.drumWrapper}>
+                  <QuantityPicker
+                    value={quantity}
+                    onChange={setQuantity}
+                    min={1}
+                    max={999}
+                  />
+                </View>
+              </View>
+
+              {/* Vertical divider */}
+              <View style={styles.divider} />
+
+              {/* Price + subtotal */}
+              <View style={styles.priceBlock}>
+                <Text style={styles.fieldLabel}>UNIT PRICE</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  keyboardType="numeric"
+                  value={unitPrice}
+                  onChangeText={setUnitPrice}
+                  placeholder="0.00"
+                  placeholderTextColor="#CBD5E1"
+                />
+                <View style={styles.subtotalRow}>
+                  <Text style={styles.subtotalLabel}>Subtotal</Text>
+                  <Text style={styles.subtotalValue}>
+                    ${lineTotal.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          <Text style={styles.label}>Category / Item Name</Text>
-          <TextInput
-            style={styles.input}
-            value={category}
-            onChangeText={setCategory}
-            placeholder="e.g. FUEL, OFFICE SUPPLIES"
-          />
+            {/* ── Step 3: Editable details (pre-filled from item) ── */}
+            <Text style={styles.sectionLabel}>DETAILS</Text>
 
-          <Text style={styles.label}>Reason / Description</Text>
-          <TextInput
-            style={styles.input}
-            value={reason}
-            onChangeText={setReason}
-            placeholder="e.g. For vehicle repair"
-          />
+            <Text style={styles.fieldLabel}>CATEGORY / ITEM NAME</Text>
+            <TextInput
+              style={styles.input}
+              value={category}
+              onChangeText={setCategory}
+              placeholder="e.g. FUEL, OFFICE SUPPLIES"
+              placeholderTextColor="#CBD5E1"
+            />
 
+            <Text style={styles.fieldLabel}>REASON / NOTES</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              value={reason}
+              onChangeText={setReason}
+              placeholder="Optional description"
+              placeholderTextColor="#CBD5E1"
+              multiline
+              numberOfLines={2}
+            />
+          </ScrollView>
+
+          {/* Footer buttons */}
           <View style={styles.btnRow}>
             <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
-              <Text>Cancel</Text>
+              <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
-              <Text style={{ color: '#fff' }}>Add to List</Text>
+              <Text style={styles.saveText}>Add to List</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -160,42 +208,164 @@ export const AddItemModal = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    justifyContent: 'flex-end', // Slide up from bottom
   },
-  card: { backgroundColor: '#FFF', borderRadius: 12, padding: 20 },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: '90%',
+    paddingBottom: 32,
+  },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1E293B',
+    letterSpacing: -0.5,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeX: { fontSize: 14, color: '#64748B', fontWeight: '700' },
+
+  // Section labels
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1.5,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 1,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+
+  // Item picker
+  pickerBox: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+  },
+  picker: { color: '#1E293B' },
+
+  // Quantity + Price row
+  quantityPriceRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  quantityBlock: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+  },
+  drumWrapper: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  divider: {
+    width: 1.5,
+    alignSelf: 'stretch',
+    backgroundColor: '#E2E8F0',
+    marginVertical: 12,
+  },
+  priceBlock: {
+    flex: 1.4,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  priceInput: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1E293B',
+    borderBottomWidth: 2,
+    borderColor: theme.colors.primary,
+    paddingBottom: 4,
+    marginTop: 4,
+  },
+  subtotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  subtotalLabel: { fontSize: 12, color: '#94A3B8', fontWeight: '600' },
+  subtotalValue: {
+    fontSize: 14,
+    fontWeight: '800',
     color: theme.colors.primary,
   },
-  label: { fontSize: 12, color: '#64748B', marginTop: 10, fontWeight: '700' },
+
+  // Text inputs
   input: {
-    borderBottomWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingVertical: 8,
-    fontSize: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#334155',
+    backgroundColor: '#F8FAFC',
   },
-  pickerBox: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    marginTop: 5,
+  multilineInput: {
+    height: 64,
+    textAlignVertical: 'top',
+    paddingTop: 10,
   },
-  row: { flexDirection: 'row' },
+
+  // Buttons
   btnRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 25,
-    gap: 10,
+    gap: 12,
+    marginTop: 24,
   },
-  cancelBtn: { padding: 10 },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  cancelText: { color: '#64748B', fontWeight: '700', fontSize: 15 },
   saveBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
     backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    alignItems: 'center',
   },
+  saveText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });
