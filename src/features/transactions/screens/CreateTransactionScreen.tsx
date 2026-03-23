@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
@@ -18,50 +17,42 @@ import {
 } from '../api/transactionService';
 import { fetchMissions } from '../../../store/missionSlice';
 import { fetchLocations } from '../../../store/locationSlice';
-import { fetchItems } from '../../../store/itemSlice'; // Load inventory
+import { fetchItems } from '../../../store/itemSlice';
 import { theme } from '../../../theme';
-import { AddItemModal } from '../components/AddItemModal'; // Import the component we just made
+import { AddItemModal } from '../components/AddItemModal';
 
 export const CreateTransactionScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
-  // Global Data
   const missions = useAppSelector(state => state.missions.items);
   const locations = useAppSelector(state => state.locations.items);
   const user = useAppSelector(state => state.auth.user);
 
-  // Form State
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [missionId, setMissionId] = useState<number | undefined>(undefined);
   const [locationId, setLocationId] = useState<number | undefined>(undefined);
 
-  // The Cart (List of Items)
   const [cartItems, setCartItems] = useState<TransactionItemDTO[]>([]);
-
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     dispatch(fetchMissions());
     dispatch(fetchLocations());
-    dispatch(fetchItems()); // Need items for the picker inside modal
+    dispatch(fetchItems());
   }, [dispatch]);
 
-  // Add item from Modal to Cart
-  const handleAddItem = (item: TransactionItemDTO) => {
-    setCartItems([...cartItems, item]);
+  const handleAddItems = (items: TransactionItemDTO[]) => {
+    setCartItems([...cartItems, ...items]);
   };
 
-  // Remove item from Cart
   const handleRemoveItem = (index: number) => {
     const newCart = [...cartItems];
     newCart.splice(index, 1);
     setCartItems(newCart);
   };
 
-  // Calculate Estimated Total (for display only)
   const estimatedTotal = cartItems.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
     0,
@@ -85,8 +76,7 @@ export const CreateTransactionScreen = () => {
         locationId,
         userId: user?.id,
         transactionDate: new Date().toISOString(),
-        items: cartItems, // <--- Sending the array
-        // totalAmount is calculated by backend
+        items: cartItems,
       });
 
       Alert.alert('Success', 'Transaction Created');
@@ -100,7 +90,6 @@ export const CreateTransactionScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* HEADER SECTION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Details</Text>
 
@@ -146,7 +135,6 @@ export const CreateTransactionScreen = () => {
           </View>
         </View>
 
-        {/* ITEMS SECTION */}
         <View style={styles.section}>
           <View
             style={{
@@ -158,7 +146,7 @@ export const CreateTransactionScreen = () => {
             <Text style={styles.sectionTitle}>Items ({cartItems.length})</Text>
             <TouchableOpacity onPress={() => setIsModalOpen(true)}>
               <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
-                + Add Item
+                + Add Items
               </Text>
             </TouchableOpacity>
           </View>
@@ -192,7 +180,6 @@ export const CreateTransactionScreen = () => {
             ))
           )}
 
-          {/* TOTAL FOOTER */}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Estimated Total:</Text>
             <Text style={styles.totalValue}>${estimatedTotal.toFixed(2)}</Text>
@@ -200,18 +187,16 @@ export const CreateTransactionScreen = () => {
         </View>
       </ScrollView>
 
-      {/* SUBMIT BUTTON */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
           <Text style={styles.submitText}>Submit Transaction</Text>
         </TouchableOpacity>
       </View>
 
-      {/* POPUP MODAL */}
       <AddItemModal
         visible={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onAdd={handleAddItem}
+        onAddMultiple={handleAddItems}
         transactionType={type}
       />
     </View>
@@ -265,8 +250,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 5,
   },
-
-  // Item Row Styles
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -284,8 +267,6 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontStyle: 'italic',
   },
-
-  // Total
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -296,8 +277,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontSize: 16, fontWeight: '700' },
   totalValue: { fontSize: 20, fontWeight: '800', color: theme.colors.primary },
-
-  // Footer Button
   footer: {
     position: 'absolute',
     bottom: 0,
