@@ -16,7 +16,6 @@ const initialState: TransactionState = {
   totalBalance: 0,
 };
 
-// Async Thunk to fetch from API
 export const fetchTransactions = createAsyncThunk(
   'transactions/fetchAll',
   async () => {
@@ -27,9 +26,7 @@ export const fetchTransactions = createAsyncThunk(
 const transactionSlice = createSlice({
   name: 'transactions',
   initialState,
-  reducers: {
-    // Optional: local filter or clear
-  },
+  reducers: {},
   extraReducers: builder => {
     builder
       .addCase(fetchTransactions.pending, state => {
@@ -40,12 +37,11 @@ const transactionSlice = createSlice({
         (state, action: PayloadAction<TransactionDTO[]>) => {
           state.loading = false;
           state.items = action.payload;
-
-          // Calculate balance automatically
+          // Use totalAmount (the field the backend returns)
           state.totalBalance = action.payload.reduce((acc, curr) => {
             return curr.type === 'INCOME'
-              ? acc + curr.amount
-              : acc - curr.amount;
+              ? acc + (curr.totalAmount ?? 0)
+              : acc - (curr.totalAmount ?? 0);
           }, 0);
         },
       )

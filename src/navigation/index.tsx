@@ -23,6 +23,8 @@ import { ProfileScreen } from '../features/auth/screens/ProfileScreen';
 import { useAppSelector } from '../store/hooks';
 import { theme } from '../theme';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { TransactionDetailScreen } from '../features/transactions/screens/Transactiondetailscreen';
+import { EditTransactionScreen } from '../features/transactions/screens/EditTransactionScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -159,6 +161,16 @@ export const AppNavigator = () => {
                 presentation: 'modal',
                 title: 'Edit Item',
               }}
+            />
+            <Stack.Screen
+              name="TransactionDetail"
+              component={TransactionDetailScreen}
+              options={{ ...headerWithBack, title: 'Transaction Details' }}
+            />
+            <Stack.Screen
+              name="EditTransaction"
+              component={EditTransactionScreen}
+              options={{ ...headerWithBack, title: 'Edit Transaction' }}
             />
           </Stack.Group>
         ) : (

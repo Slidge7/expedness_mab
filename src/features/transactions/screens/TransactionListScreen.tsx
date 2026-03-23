@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { transactionService, TransactionDTO } from '../api/transactionService';
@@ -22,13 +21,13 @@ export const TransactionListScreen = () => {
     try {
       setLoading(true);
       const res = await transactionService.getAll();
-      // Ensure the data is sorted by date (newest first)
-      const sortedData = res.sort(
-        (a, b) =>
-          new Date(b.transactionDate).getTime() -
-          new Date(a.transactionDate).getTime(),
+      setData(
+        res.sort(
+          (a, b) =>
+            new Date(b.transactionDate).getTime() -
+            new Date(a.transactionDate).getTime(),
+        ),
       );
-      setData(sortedData);
     } catch (e) {
       console.error('Failed to fetch transactions:', e);
     } finally {
@@ -40,46 +39,83 @@ export const TransactionListScreen = () => {
     if (isFocused) loadData();
   }, [isFocused]);
 
-  const renderItem = ({ item }: { item: TransactionDTO }) => (
-    <View style={styles.card}>
-      <View style={styles.leftCol}>
-        <Text style={styles.desc} numberOfLines={1}>
-          {item.description}
-        </Text>
-        <Text style={styles.subText}>
-          {new Date(item.transactionDate).toLocaleDateString()} •{' '}
-          {item.items?.length || 0} Items
-        </Text>
-        {item.missionId && (
-          <View style={styles.missionBadge}>
-            <Text style={styles.missionText}>Mission #{item.missionId}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.rightCol}>
-        <Text
+  const renderItem = ({ item }: { item: TransactionDTO }) => {
+    const isIncome = item.type === 'INCOME';
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.75}
+        onPress={() =>
+          navigation.navigate('TransactionDetail', { transactionId: item.id })
+        }
+      >
+        {/* Left accent bar */}
+        <View
           style={[
-            styles.amount,
-            { color: item.type === 'INCOME' ? '#10B981' : '#EF4444' },
+            styles.accent,
+            { backgroundColor: isIncome ? '#10B981' : '#EF4444' },
           ]}
-        >
-          {item.type === 'INCOME' ? '+' : '-'}$
-          {item.totalAmount?.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </Text>
-        <Text style={styles.createdBy}>By {item.createdBy || 'System'}</Text>
-      </View>
-    </View>
-  );
+        />
+
+        <View style={styles.cardBody}>
+          <View style={styles.topRow}>
+            <Text style={styles.desc} numberOfLines={1}>
+              {item.description}
+            </Text>
+            <Text
+              style={[
+                styles.amount,
+                { color: isIncome ? '#10B981' : '#EF4444' },
+              ]}
+            >
+              {isIncome ? '+' : '-'}
+              {item.totalAmount?.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            <Text style={styles.date}>
+              {new Date(item.transactionDate).toLocaleDateString()} ·{' '}
+              {item.items?.length || 0} items
+            </Text>
+            <Text style={styles.createdBy}>{item.createdBy || 'System'}</Text>
+          </View>
+
+          {/* Badges */}
+          <View style={styles.badges}>
+            {item.fuelTank && (
+              <View style={styles.badgeDark}>
+                <Text style={styles.badgeText}>
+                  {item.fuelTank.toUpperCase()}
+                </Text>
+              </View>
+            )}
+            {item.category && (
+              <View style={styles.badgePurple}>
+                <Text style={styles.badgeText}>{item.category}</Text>
+              </View>
+            )}
+            {item.missionId && (
+              <View style={styles.badgeGray}>
+                <Text style={styles.badgeTextDark}>
+                  Mission #{item.missionId}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <FlatList
         data={data}
-        keyExtractor={item => item.id?.toString() || Math.random().toString()}
+        keyExtractor={item => item.id?.toString() ?? Math.random().toString()}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -110,68 +146,83 @@ export const TransactionListScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  listPadding: {
-    paddingBottom: 100,
-  },
+  container: { flex: 1, backgroundColor: '#F1F5F9' },
+  listPadding: { paddingBottom: 100, paddingTop: 8 },
+
   card: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
     backgroundColor: '#FFF',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     borderRadius: 12,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
+    overflow: 'hidden',
   },
-  leftCol: {
+  accent: {
+    width: 4,
+  },
+  cardBody: {
     flex: 1,
-    marginRight: 10,
+    padding: 14,
   },
-  rightCol: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
   },
   desc: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 4,
-  },
-  subText: {
-    fontSize: 12,
-    color: '#64748B',
+    flex: 1,
   },
   amount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
   },
-  createdBy: {
-    fontSize: 10,
-    color: '#94A3B8',
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 4,
+  },
+  date: { fontSize: 12, color: '#64748B' },
+  createdBy: { fontSize: 11, color: '#94A3B8', textTransform: 'uppercase' },
+
+  badges: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
+  badgeDark: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  badgePurple: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  badgeGray: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  badgeText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
-  missionBadge: {
-    backgroundColor: '#E2E8F0',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 8,
-  },
-  missionText: {
-    fontSize: 10,
-    color: '#475569',
-    fontWeight: '600',
-  },
+  badgeTextDark: { fontSize: 10, color: '#475569', fontWeight: '600' },
+
+  emptyContainer: { flex: 1, alignItems: 'center', marginTop: 50 },
+  emptyText: { color: '#94A3B8', fontSize: 16 },
+
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -188,18 +239,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
   },
-  fabText: {
-    color: '#FFF',
-    fontSize: 30,
-    fontWeight: '300',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  emptyText: {
-    color: '#94A3B8',
-    fontSize: 16,
-  },
+  fabText: { color: '#FFF', fontSize: 30, fontWeight: '300' },
 });

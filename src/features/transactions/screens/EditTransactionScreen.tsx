@@ -7,8 +7,9 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import {
@@ -22,32 +23,58 @@ import { theme } from '../../../theme';
 import { AddItemModal } from '../components/AddItemModal';
 import { CategoryPicker } from '../components/CategoryPicker';
 
-export const CreateTransactionScreen = () => {
+type RouteParams = { transactionId: number };
+
+export const EditTransactionScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
+  const { transactionId } = route.params;
   const dispatch = useAppDispatch();
 
   const missions = useAppSelector(state => state.missions.items);
   const locations = useAppSelector(state => state.locations.items);
   const user = useAppSelector(state => state.auth.user);
 
+  const [fetching, setFetching] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [fuelTank, setFuelTank] = useState<'ft1' | 'ft2' | 'ft3'>('ft1');
-  const [category, setCategory] = useState<string>('');
+  const [category, setCategory] = useState('');
   const [missionId, setMissionId] = useState<number | undefined>(undefined);
   const [locationId, setLocationId] = useState<number | undefined>(undefined);
   const [snapBalance, setSnapBalance] = useState<
     'AFTER' | 'BEFORE' | undefined
   >(undefined);
   const [cartItems, setCartItems] = useState<TransactionItemDTO[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     dispatch(fetchMissions());
     dispatch(fetchLocations());
     dispatch(fetchItems());
-  }, [dispatch]);
+    loadTransaction();
+  }, []);
+
+  const loadTransaction = async () => {
+    try {
+      setFetching(true);
+      const tx = await transactionService.getById(transactionId);
+      setDescription(tx.description);
+      setType(tx.type);
+      setFuelTank((tx.fuelTank as any) || 'ft1');
+      setCategory(tx.category || '');
+      setMissionId(tx.missionId);
+      setLocationId(tx.locationId);
+      setCartItems(tx.items || []);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to load transaction.');
+      navigation.goBack();
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const handleAddItems = (items: TransactionItemDTO[]) => {
     setCartItems(prev => [...prev, ...items]);
@@ -72,8 +99,8 @@ export const CreateTransactionScreen = () => {
       return;
     }
     try {
-      setLoading(true);
-      await transactionService.create({
+      setSaving(true);
+      await transactionService.update(transactionId, {
         description,
         type,
         fuelTank,
@@ -85,22 +112,29 @@ export const CreateTransactionScreen = () => {
         transactionDate: new Date().toISOString(),
         items: cartItems,
       });
-      Alert.alert('Success', 'Transaction created.');
+      Alert.alert('Success', 'Transaction updated.');
       navigation.goBack();
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to save transaction.');
+      Alert.alert('Error', 'Failed to update transaction.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (fetching) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* ── Details ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Details</Text>
+          <Text style={styles.sectionTitle}>Edit Details</Text>
 
           <Text style={styles.label}>Type</Text>
           <View style={styles.row}>
@@ -175,7 +209,6 @@ export const CreateTransactionScreen = () => {
           </View>
         </View>
 
-        {/* ── Items ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Items ({cartItems.length})</Text>
@@ -219,11 +252,10 @@ export const CreateTransactionScreen = () => {
           </View>
         </View>
 
-        {/* ── Snapshot ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Balance Snapshot</Text>
           <Text style={styles.snapHint}>
-            Optionally capture a balance snapshot relative to this transaction.
+            Optionally capture a balance snapshot relative to this update.
           </Text>
           <View style={styles.row}>
             {([undefined, 'BEFORE', 'AFTER'] as const).map(opt => (
@@ -252,12 +284,12 @@ export const CreateTransactionScreen = () => {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.submitBtn, loading && { opacity: 0.6 }]}
+          style={[styles.submitBtn, saving && { opacity: 0.6 }]}
           onPress={handleSubmit}
-          disabled={loading}
+          disabled={saving}
         >
           <Text style={styles.submitText}>
-            {loading ? 'Saving…' : 'Submit Transaction'}
+            {saving ? 'Saving…' : 'Save Changes'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -274,6 +306,7 @@ export const CreateTransactionScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   section: {
     backgroundColor: '#FFF',
     padding: 20,
