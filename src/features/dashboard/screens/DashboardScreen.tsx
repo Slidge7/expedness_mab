@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { fetchSummary, fetchByPeriod } from '../../../store/overviewSlice';
+import { fetchDashboard } from '../../../store/overviewSlice';
 import { theme } from '../../../theme';
 import { Preset, GroupBy } from '../api/overviewService';
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const { width: SCREEN_W } = Dimensions.get('window');
 
 const PRESETS: { label: string; value: Preset }[] = [
   { label: 'Today', value: 'TODAY' },
@@ -24,52 +30,93 @@ const PERIOD_TABS: { label: string; value: GroupBy }[] = [
   { label: 'Monthly', value: 'MONTHLY' },
 ];
 
-const CATEGORY_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const CAT_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const TAG_COLORS = ['#06B6D4', '#F97316', '#84CC16', '#EC4899', '#14B8A6'];
+const FT_COLORS = { ft1: '#6366F1', ft2: '#10B981', ft3: '#F59E0B' };
+const INCOME_CLR = '#10B981';
+const EXPENSE_CLR = '#EF4444';
+const CHART_H = 110;
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+const fmt = (n: number = 0) =>
+  n.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const shortLabel = (label: string, groupBy: GroupBy): string => {
+  if (groupBy === 'DAILY') return label.slice(5); // "01-15"
+  if (groupBy === 'MONTHLY') return label.slice(0, 3); // "Jan"
+  return label.replace('Week ', 'W'); // "W3"
+};
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export const DashboardScreen = () => {
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector(state => state.auth);
-  const { summary, periodEntries, loading } = useAppSelector(
-    state => state.overview,
-  );
+  const { user } = useAppSelector(s => s.auth);
+  const { dashboard, loading, error } = useAppSelector(s => s.overview);
 
   const [preset, setPreset] = useState<Preset>('THIS_MONTH');
   const [groupBy, setGroupBy] = useState<GroupBy>('DAILY');
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    dispatch(fetchSummary({ preset, topN: 3 }));
-    dispatch(fetchByPeriod({ preset, groupBy }));
+  const load = useCallback(() => {
+    dispatch(fetchDashboard({ preset, groupBy }));
   }, [preset, groupBy, dispatch]);
 
-  const fmt = (n: number) =>
-    n.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const maxPeriodNet = Math.max(...periodEntries.map(e => Math.abs(e.net)), 1);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await dispatch(fetchDashboard({ preset, groupBy }));
+    setRefreshing(false);
+  }, [preset, groupBy, dispatch]);
+
+  // Derived
+  const bal = dashboard?.balance;
+  const txn = dashboard?.transactions;
+  const maxNet = Math.max(
+    ...(dashboard?.byPeriod ?? []).map(e => Math.max(e.income, e.expense)),
+    1,
+  );
+
+  // ── Balance ft totals for proportional bars ─────────────────────────────────
+  const ftTotal = (bal?.ft1 ?? 0) + (bal?.ft2 ?? 0) + (bal?.ft3 ?? 0) || 1;
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* ── Header ── */}
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.colors.primary]}
+          tintColor={theme.colors.primary}
+        />
+      }
+    >
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <Text style={styles.welcome}>Hello, {user?.username} 👋</Text>
 
-        {/* Preset tabs */}
-        <View style={styles.presetRow}>
+        {/* Preset pills */}
+        <View style={styles.pillRow}>
           {PRESETS.map(p => (
             <TouchableOpacity
               key={p.value}
-              style={[
-                styles.presetBtn,
-                preset === p.value && styles.presetBtnActive,
-              ]}
+              style={[styles.pill, preset === p.value && styles.pillActive]}
               onPress={() => setPreset(p.value)}
+              activeOpacity={0.75}
             >
               <Text
                 style={[
-                  styles.presetLabel,
-                  preset === p.value && styles.presetLabelActive,
+                  styles.pillLabel,
+                  preset === p.value && styles.pillLabelActive,
                 ]}
               >
                 {p.label}
@@ -77,349 +124,504 @@ export const DashboardScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+      </View>
 
-        {/* Balance */}
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Balance</Text>
-          {loading && !summary ? (
-            <ActivityIndicator color="#FFF" style={{ marginTop: 8 }} />
-          ) : (
-            <Text
+      {loading && !dashboard ? (
+        <ActivityIndicator
+          color={theme.colors.primary}
+          style={{ marginTop: 48 }}
+          size="large"
+        />
+      ) : (
+        <>
+          {/* ── Balance Card ──────────────────────────────────────────────── */}
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceCardLabel}>Current Balance</Text>
+            <Text style={styles.balanceCardTotal}>${fmt(bal?.total ?? 0)}</Text>
+
+            {/* ft1 / ft2 / ft3 breakdown */}
+            <View style={styles.ftRow}>
+              {(['ft1', 'ft2', 'ft3'] as const).map(key => (
+                <View key={key} style={styles.ftBox}>
+                  <View
+                    style={[styles.ftDot, { backgroundColor: FT_COLORS[key] }]}
+                  />
+                  <Text style={styles.ftKey}>{key.toUpperCase()}</Text>
+                  <Text style={styles.ftVal}>${fmt(bal?.[key] ?? 0)}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Proportional bar */}
+            <View style={styles.ftBar}>
+              {(['ft1', 'ft2', 'ft3'] as const).map(key => (
+                <View
+                  key={key}
+                  style={[
+                    styles.ftBarSegment,
+                    {
+                      flex: (bal?.[key] ?? 0) / ftTotal,
+                      backgroundColor: FT_COLORS[key],
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* ── Income / Expense / Net ─────────────────────────────────────── */}
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, { borderTopColor: INCOME_CLR }]}>
+              <Text style={styles.statCardLabel}>Income</Text>
+              <Text style={[styles.statCardValue, { color: INCOME_CLR }]}>
+                ${fmt(txn?.totalIncome)}
+              </Text>
+            </View>
+            <View style={[styles.statCard, { borderTopColor: EXPENSE_CLR }]}>
+              <Text style={styles.statCardLabel}>Expense</Text>
+              <Text style={[styles.statCardValue, { color: EXPENSE_CLR }]}>
+                ${fmt(txn?.totalExpense)}
+              </Text>
+            </View>
+            <View
               style={[
-                styles.balanceAmount,
-                { color: (summary?.balance ?? 0) >= 0 ? '#FFF' : '#FECACA' },
+                styles.statCard,
+                {
+                  borderTopColor:
+                    (txn?.net ?? 0) >= 0 ? INCOME_CLR : EXPENSE_CLR,
+                },
               ]}
             >
-              {(summary?.balance ?? 0) >= 0 ? '' : '-'}$
-              {fmt(Math.abs(summary?.balance ?? 0))}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* ── Income / Expense row ── */}
-      <View style={styles.statsRow}>
-        <View
-          style={[
-            styles.statBox,
-            { borderLeftColor: '#10B981', borderLeftWidth: 4 },
-          ]}
-        >
-          <Text style={styles.statLabel}>Income</Text>
-          <Text style={[styles.statValue, { color: '#10B981' }]}>
-            ${fmt(summary?.totalIncome ?? 0)}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.statBox,
-            { borderLeftColor: '#EF4444', borderLeftWidth: 4 },
-          ]}
-        >
-          <Text style={styles.statLabel}>Expenses</Text>
-          <Text style={[styles.statValue, { color: '#EF4444' }]}>
-            ${fmt(summary?.totalExpense ?? 0)}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Extra stats ── */}
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Transactions</Text>
-          <Text style={styles.statValue}>{summary?.transactionCount ?? 0}</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Avg. Transaction</Text>
-          <Text style={styles.statValue}>
-            ${fmt(summary?.avgTransactionAmount ?? 0)}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Top Categories ── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Top Categories</Text>
-        {(summary?.topCategories ?? []).length === 0 ? (
-          <Text style={styles.empty}>No data for this period</Text>
-        ) : (
-          summary?.topCategories.map((cat, i) => (
-            <View key={cat.category} style={styles.categoryRow}>
-              <View
+              <Text style={styles.statCardLabel}>Net</Text>
+              <Text
                 style={[
-                  styles.categoryDot,
+                  styles.statCardValue,
                   {
-                    backgroundColor:
-                      CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+                    color: (txn?.net ?? 0) >= 0 ? INCOME_CLR : EXPENSE_CLR,
                   },
                 ]}
-              />
-              <View style={styles.categoryInfo}>
-                <View style={styles.categoryHeader}>
-                  <Text style={styles.categoryName}>{cat.category}</Text>
-                  <Text style={styles.categoryAmount}>
-                    ${fmt(cat.totalAmount)}
-                  </Text>
-                </View>
-                <View style={styles.progressBg}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${cat.percentageOfTotal}%` as any,
-                        backgroundColor:
-                          CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.categoryPct}>
-                  {cat.percentageOfTotal.toFixed(1)}%
-                </Text>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
-
-      {/* ── Period Chart ── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Spending Over Time</Text>
-          <View style={styles.periodTabRow}>
-            {PERIOD_TABS.map(t => (
-              <TouchableOpacity
-                key={t.value}
-                style={[
-                  styles.periodTab,
-                  groupBy === t.value && styles.periodTabActive,
-                ]}
-                onPress={() => setGroupBy(t.value)}
               >
-                <Text
-                  style={[
-                    styles.periodTabLabel,
-                    groupBy === t.value && styles.periodTabLabelActive,
-                  ]}
-                >
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                {(txn?.net ?? 0) < 0 ? '-' : ''}${fmt(Math.abs(txn?.net ?? 0))}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statCardLabel}>Avg.</Text>
+              <Text style={styles.statCardValue}>${fmt(txn?.avgAmount)}</Text>
+            </View>
           </View>
-        </View>
 
-        {loading ? (
-          <ActivityIndicator
-            color={theme.colors.primary}
-            style={{ marginTop: 16 }}
-          />
-        ) : periodEntries.length === 0 ? (
-          <Text style={styles.empty}>No data for this period</Text>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chartScroll}
-          >
-            <View style={styles.chart}>
-              {periodEntries.map((entry, i) => {
-                const incomeH = Math.max(
-                  (entry.income / maxPeriodNet) * 100,
-                  2,
-                );
-                const expenseH = Math.max(
-                  (entry.expense / maxPeriodNet) * 100,
-                  2,
-                );
-                return (
-                  <View key={i} style={styles.barGroup}>
-                    <View style={styles.bars}>
-                      <View
-                        style={[
-                          styles.bar,
-                          { height: incomeH, backgroundColor: '#10B981' },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.bar,
-                          { height: expenseH, backgroundColor: '#EF4444' },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.barLabel} numberOfLines={1}>
-                      {entry.label.length > 6
-                        ? entry.label.slice(5)
-                        : entry.label}
+          {/* ── Period Chart ───────────────────────────────────────────────── */}
+          <Section title="Over Time">
+            {/* GroupBy tabs */}
+            <View style={styles.tabRow}>
+              {PERIOD_TABS.map(t => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[styles.tab, groupBy === t.value && styles.tabActive]}
+                  onPress={() => setGroupBy(t.value)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      groupBy === t.value && styles.tabLabelActive,
+                    ]}
+                  >
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {(dashboard?.byPeriod ?? []).length === 0 ? (
+              <Empty />
+            ) : (
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.chartScroll}
+                >
+                  <View style={styles.chart}>
+                    {(dashboard?.byPeriod ?? []).map((entry, i) => {
+                      const incH = Math.max(
+                        (entry.income / maxNet) * CHART_H,
+                        3,
+                      );
+                      const expH = Math.max(
+                        (entry.expense / maxNet) * CHART_H,
+                        3,
+                      );
+                      return (
+                        <View key={i} style={styles.barGroup}>
+                          <View style={styles.bars}>
+                            <View
+                              style={[
+                                styles.bar,
+                                { height: incH, backgroundColor: INCOME_CLR },
+                              ]}
+                            />
+                            <View
+                              style={[
+                                styles.bar,
+                                { height: expH, backgroundColor: EXPENSE_CLR },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.barLabel} numberOfLines={1}>
+                            {shortLabel(entry.label, groupBy)}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+                <View style={styles.legend}>
+                  <LegendDot color={INCOME_CLR} label="Income" />
+                  <LegendDot color={EXPENSE_CLR} label="Expense" />
+                </View>
+              </>
+            )}
+          </Section>
+
+          {/* ── By Category ───────────────────────────────────────────────── */}
+          <Section title="By Category">
+            {(dashboard?.byCategory ?? []).length === 0 ? (
+              <Empty />
+            ) : (
+              dashboard!.byCategory.map((cat, i) => (
+                <ProgressRow
+                  key={cat.category}
+                  label={cat.category}
+                  amount={cat.totalAmount}
+                  count={cat.transactionCount}
+                  pct={cat.percentageOfTotal}
+                  color={CAT_COLORS[i % CAT_COLORS.length]}
+                />
+              ))
+            )}
+          </Section>
+
+          {/* ── By Mission ────────────────────────────────────────────────── */}
+          <Section title="By Mission">
+            {(dashboard?.byMission ?? []).length === 0 ? (
+              <Empty />
+            ) : (
+              dashboard!.byMission.map(m => (
+                <View key={m.missionId} style={styles.missionRow}>
+                  <View style={styles.missionLeft}>
+                    <Text style={styles.missionTitle} numberOfLines={1}>
+                      {m.missionTitle}
+                    </Text>
+                    <Text style={styles.missionCount}>
+                      {m.transactionCount} transactions
                     </Text>
                   </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        )}
+                  <View style={styles.missionRight}>
+                    <Text style={[styles.missionIncome]}>
+                      +${fmt(m.totalIncome)}
+                    </Text>
+                    <Text style={[styles.missionExpense]}>
+                      -${fmt(m.totalExpense)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.missionNet,
+                        { color: m.net >= 0 ? INCOME_CLR : EXPENSE_CLR },
+                      ]}
+                    >
+                      {m.net >= 0 ? '+' : ''}
+                      {fmt(m.net)}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </Section>
+        </>
+      )}
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-            <Text style={styles.legendLabel}>Income</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-            <Text style={styles.legendLabel}>Expense</Text>
-          </View>
-        </View>
-      </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <View style={{ height: 30 }} />
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 };
 
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+const Section = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    {children}
+  </View>
+);
+
+const Empty = () => <Text style={styles.empty}>No data for this period</Text>;
+
+const LegendDot = ({ color, label }: { color: string; label: string }) => (
+  <View style={styles.legendItem}>
+    <View style={[styles.legendDot, { backgroundColor: color }]} />
+    <Text style={styles.legendLabel}>{label}</Text>
+  </View>
+);
+
+const ProgressRow = ({
+  label,
+  amount,
+  count,
+  pct,
+  color,
+}: {
+  label: string;
+  amount: number;
+  count: number;
+  pct: number;
+  color: string;
+}) => (
+  <View style={styles.progressRow}>
+    <View style={[styles.progressDot, { backgroundColor: color }]} />
+    <View style={styles.progressBody}>
+      <View style={styles.progressHeader}>
+        <Text style={styles.progressLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={styles.progressAmount}>${fmt(amount)}</Text>
+      </View>
+      <View style={styles.progressBg}>
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${pct}%` as any, backgroundColor: color },
+          ]}
+        />
+      </View>
+      <Text style={styles.progressMeta}>
+        {count} txn · {pct.toFixed(1)}%
+      </Text>
+    </View>
+  </View>
+);
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#0F0F14' },
 
   // Header
-  header: {
-    backgroundColor: theme.colors.primary,
-    padding: 24,
-    paddingBottom: 32,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  header: { paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16 },
+  welcome: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#F1F1F3',
+    marginBottom: 16,
   },
-  welcome: { color: 'rgba(255,255,255,0.85)', fontSize: 16, marginBottom: 14 },
-  presetRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  presetBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  presetBtnActive: { backgroundColor: '#FFF' },
-  presetLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  presetLabelActive: { color: theme.colors.primary, fontWeight: '700' },
-  balanceCard: { marginTop: 4 },
-  balanceLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 13 },
-  balanceAmount: { fontSize: 38, fontWeight: '800', marginTop: 4 },
 
-  // Stat rows
-  statsRow: {
-    flexDirection: 'row',
+  // Preset pills
+  pillRow: { flexDirection: 'row', gap: 8 },
+  pill: {
     paddingHorizontal: 16,
-    gap: 12,
-    marginTop: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#1C1C26',
+    borderWidth: 1,
+    borderColor: '#2A2A3A',
   },
-  statBox: {
+  pillActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  pillLabel: { fontSize: 13, fontWeight: '600', color: '#888' },
+  pillLabelActive: { color: '#FFF' },
+
+  // Balance card
+  balanceCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    backgroundColor: '#1A1A28',
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#2A2A3A',
+  },
+  balanceCardLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 4,
+  },
+  balanceCardTotal: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#F1F1F3',
+    marginBottom: 20,
+  },
+  ftRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  ftBox: { alignItems: 'center', flex: 1 },
+  ftDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  ftKey: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  ftVal: { fontSize: 14, fontWeight: '700', color: '#D1D1DB' },
+  ftBar: {
+    flexDirection: 'row',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: '#2A2A3A',
+  },
+  ftBarSegment: { height: 6 },
+
+  // Stats grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  statCard: {
     flex: 1,
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
+    minWidth: (SCREEN_W - 56) / 2,
+    backgroundColor: '#1A1A28',
+    borderRadius: 14,
+    padding: 14,
+    borderTopWidth: 3,
+    borderTopColor: '#2A2A3A',
+    borderWidth: 1,
+    borderColor: '#2A2A3A',
   },
-  statLabel: { color: '#64748B', fontSize: 12, marginBottom: 6 },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
+  statCardLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  statCardValue: { fontSize: 18, fontWeight: '800', color: '#F1F1F3' },
 
   // Section
-  section: {
-    margin: 16,
-    marginTop: 20,
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 18,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-  },
+  section: { marginHorizontal: 20, marginBottom: 24 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 16,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  empty: {
-    color: '#94A3B8',
-    fontSize: 14,
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-
-  // Categories
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    color: '#F1F1F3',
     marginBottom: 14,
   },
-  categoryDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 4,
-    marginRight: 10,
+  empty: { fontSize: 13, color: '#555', fontStyle: 'italic' },
+  errorText: {
+    color: EXPENSE_CLR,
+    textAlign: 'center',
+    marginTop: 12,
+    fontSize: 13,
   },
-  categoryInfo: { flex: 1 },
-  categoryHeader: {
+
+  // GroupBy tabs
+  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#1C1C26',
+    borderWidth: 1,
+    borderColor: '#2A2A3A',
+  },
+  tabActive: { backgroundColor: '#2A2A3A', borderColor: '#444' },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: '#555' },
+  tabLabelActive: { color: '#F1F1F3' },
+
+  // Chart
+  chartScroll: { marginBottom: 10 },
+  chart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingVertical: 4,
+    gap: 6,
+  },
+  barGroup: { alignItems: 'center', width: 32 },
+  bars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+    height: CHART_H,
+  },
+  bar: { width: 12, borderRadius: 3 },
+  barLabel: { fontSize: 9, color: '#555', marginTop: 5, textAlign: 'center' },
+
+  // Legend
+  legend: { flexDirection: 'row', gap: 16 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendLabel: { fontSize: 12, color: '#888' },
+
+  // Progress rows (category + tag)
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 14,
+  },
+  progressDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 },
+  progressBody: { flex: 1 },
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  categoryName: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
-  categoryAmount: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#D1D1DB',
+    flex: 1,
+    marginRight: 8,
+  },
+  progressAmount: { fontSize: 14, fontWeight: '700', color: '#F1F1F3' },
   progressBg: {
-    height: 6,
-    backgroundColor: '#F1F5F9',
+    height: 5,
+    backgroundColor: '#2A2A3A',
     borderRadius: 3,
-    overflow: 'hidden',
+    marginBottom: 4,
   },
-  progressFill: { height: 6, borderRadius: 3 },
-  categoryPct: { fontSize: 11, color: '#94A3B8', marginTop: 3 },
+  progressFill: { height: 5, borderRadius: 3 },
+  progressMeta: { fontSize: 11, color: '#555' },
 
-  // Period chart
-  periodTabRow: { flexDirection: 'row', gap: 6 },
-  periodTab: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-  },
-  periodTabActive: { backgroundColor: theme.colors.primary },
-  periodTabLabel: { fontSize: 11, color: '#64748B', fontWeight: '500' },
-  periodTabLabelActive: { color: '#FFF', fontWeight: '700' },
-  chartScroll: { marginBottom: 12 },
-  chart: {
+  // Mission rows
+  missionRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingVertical: 8,
-    minHeight: 120,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1C1C26',
   },
-  barGroup: { alignItems: 'center', width: 36 },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 100 },
-  bar: { width: 14, borderRadius: 4, minHeight: 2 },
-  barLabel: {
-    fontSize: 9,
-    color: '#94A3B8',
-    marginTop: 4,
-    width: 36,
-    textAlign: 'center',
+  missionLeft: { flex: 1, marginRight: 12 },
+  missionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#D1D1DB',
+    marginBottom: 3,
   },
-  legend: { flexDirection: 'row', gap: 16, marginTop: 4 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 12, color: '#64748B' },
+  missionCount: { fontSize: 11, color: '#555' },
+  missionRight: { alignItems: 'flex-end' },
+  missionIncome: { fontSize: 12, color: INCOME_CLR, fontWeight: '600' },
+  missionExpense: { fontSize: 12, color: EXPENSE_CLR, fontWeight: '600' },
+  missionNet: { fontSize: 13, fontWeight: '800', marginTop: 2 },
 });

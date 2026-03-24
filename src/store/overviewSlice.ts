@@ -1,59 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
   overviewService,
-  SummaryDTO,
-  PeriodEntry,
-  CategoryEntry,
-  GroupEntry,
+  DashboardDTO,
   DateRangeParams,
   GroupBy,
 } from '../features/dashboard/api/overviewService';
 
 interface OverviewState {
-  summary: SummaryDTO | null;
-  periodEntries: PeriodEntry[];
-  categoryEntries: CategoryEntry[];
-  missionEntries: GroupEntry[];
-  locationEntries: GroupEntry[];
+  dashboard: DashboardDTO | null;
   loading: boolean;
   error: string | null;
 }
 
 const initialState: OverviewState = {
-  summary: null,
-  periodEntries: [],
-  categoryEntries: [],
-  missionEntries: [],
-  locationEntries: [],
+  dashboard: null,
   loading: false,
   error: null,
 };
 
-export const fetchSummary = createAsyncThunk(
-  'overview/fetchSummary',
-  async (params: DateRangeParams & { topN?: number }) =>
-    overviewService.getSummary(params),
-);
-
-export const fetchByPeriod = createAsyncThunk(
-  'overview/fetchByPeriod',
+export const fetchDashboard = createAsyncThunk(
+  'overview/fetchDashboard',
   async (params: DateRangeParams & { groupBy?: GroupBy }) =>
-    overviewService.getByPeriod(params),
-);
-
-export const fetchByCategory = createAsyncThunk(
-  'overview/fetchByCategory',
-  async (params: DateRangeParams) => overviewService.getByCategory(params),
-);
-
-export const fetchByMission = createAsyncThunk(
-  'overview/fetchByMission',
-  async (params: DateRangeParams) => overviewService.getByMission(params),
-);
-
-export const fetchByLocation = createAsyncThunk(
-  'overview/fetchByLocation',
-  async (params: DateRangeParams) => overviewService.getByLocation(params),
+    overviewService.getDashboard(params),
 );
 
 const overviewSlice = createSlice({
@@ -63,50 +31,19 @@ const overviewSlice = createSlice({
     clearOverview: () => initialState,
   },
   extraReducers: builder => {
-    const setLoading = (state: OverviewState) => {
-      state.loading = true;
-      state.error = null;
-    };
-    const setError = (state: OverviewState, action: any) => {
-      state.loading = false;
-      state.error = action.error.message || 'Something went wrong';
-    };
-
     builder
-      .addCase(fetchSummary.pending, setLoading)
-      .addCase(fetchSummary.fulfilled, (state, action) => {
-        state.loading = false;
-        state.summary = action.payload;
+      .addCase(fetchDashboard.pending, state => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchSummary.rejected, setError)
-
-      .addCase(fetchByPeriod.pending, setLoading)
-      .addCase(fetchByPeriod.fulfilled, (state, action) => {
+      .addCase(fetchDashboard.fulfilled, (state, action) => {
         state.loading = false;
-        state.periodEntries = action.payload;
+        state.dashboard = action.payload;
       })
-      .addCase(fetchByPeriod.rejected, setError)
-
-      .addCase(fetchByCategory.pending, setLoading)
-      .addCase(fetchByCategory.fulfilled, (state, action) => {
+      .addCase(fetchDashboard.rejected, (state, action) => {
         state.loading = false;
-        state.categoryEntries = action.payload;
-      })
-      .addCase(fetchByCategory.rejected, setError)
-
-      .addCase(fetchByMission.pending, setLoading)
-      .addCase(fetchByMission.fulfilled, (state, action) => {
-        state.loading = false;
-        state.missionEntries = action.payload;
-      })
-      .addCase(fetchByMission.rejected, setError)
-
-      .addCase(fetchByLocation.pending, setLoading)
-      .addCase(fetchByLocation.fulfilled, (state, action) => {
-        state.loading = false;
-        state.locationEntries = action.payload;
-      })
-      .addCase(fetchByLocation.rejected, setError);
+        state.error = action.error.message ?? 'Something went wrong';
+      });
   },
 });
 

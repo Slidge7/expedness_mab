@@ -9,22 +9,21 @@ export interface DateRangeParams {
   to?: string;
 }
 
-export interface CategoryEntry {
-  category: string;
-  totalAmount: number;
-  transactionCount: number;
-  percentageOfTotal: number;
+// ── Shape mirrors OverviewDTO.Dashboard exactly ───────────────────────────────
+
+export interface BalanceSnapshot {
+  ft1: number;
+  ft2: number;
+  ft3: number;
+  total: number;
 }
 
-export interface SummaryDTO {
+export interface TransactionSummary {
   totalIncome: number;
   totalExpense: number;
-  balance: number;
-  avgTransactionAmount: number;
+  net: number;
+  avgAmount: number;
   transactionCount: number;
-  from: string;
-  to: string;
-  topCategories: CategoryEntry[];
 }
 
 export interface PeriodEntry {
@@ -34,35 +33,36 @@ export interface PeriodEntry {
   net: number;
 }
 
-export interface GroupEntry {
-  id: number;
-  name: string;
+export interface CategoryEntry {
+  category: string;
+  totalAmount: number;
+  transactionCount: number;
+  percentageOfTotal: number;
+}
+
+export interface MissionEntry {
+  missionId: number;
+  missionTitle: string;
   totalIncome: number;
   totalExpense: number;
   net: number;
   transactionCount: number;
 }
 
+export interface DashboardDTO {
+  from: string;
+  to: string;
+  balance: BalanceSnapshot;
+  transactions: TransactionSummary;
+  byPeriod: PeriodEntry[];
+  byCategory: CategoryEntry[];
+  byMission: MissionEntry[];
+}
+
+// ── Single call ───────────────────────────────────────────────────────────────
+
 export const overviewService = {
-  getSummary: async (params: DateRangeParams & { topN?: number }) =>
-    (await apiClient.get<SummaryDTO>('/api/overview/summary', { params })).data,
-
-  getByPeriod: async (params: DateRangeParams & { groupBy?: GroupBy }) =>
-    (await apiClient.get<PeriodEntry[]>('/api/overview/by-period', { params }))
-      .data,
-
-  getByCategory: async (params: DateRangeParams) =>
-    (
-      await apiClient.get<CategoryEntry[]>('/api/overview/by-category', {
-        params,
-      })
-    ).data,
-
-  getByMission: async (params: DateRangeParams) =>
-    (await apiClient.get<GroupEntry[]>('/api/overview/by-mission', { params }))
-      .data,
-
-  getByLocation: async (params: DateRangeParams) =>
-    (await apiClient.get<GroupEntry[]>('/api/overview/by-location', { params }))
+  getDashboard: async (params: DateRangeParams & { groupBy?: GroupBy }) =>
+    (await apiClient.get<DashboardDTO>('/api/overview/dashboard', { params }))
       .data,
 };
