@@ -4,12 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { logoutUser } from '../../../store/authSlice';
+import { confirmAction } from '../../../utils/confirmAction';
 import { theme } from '../../../theme';
 
 export const ProfileScreen = () => {
@@ -17,17 +16,14 @@ export const ProfileScreen = () => {
   const user = useAppSelector(state => state.auth.user);
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to exit?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        onPress: () => {
-          // This clears Redux + AsyncStorage, triggering the AppNavigator to switch to Login
-          dispatch(logoutUser());
-        },
+    confirmAction(
+      'Log Out',
+      'Are you sure you want to exit?',
+      () => {
+        dispatch(logoutUser());
       },
-    ]);
+      'Log Out',
+    );
   };
 
   return (

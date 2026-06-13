@@ -16,6 +16,7 @@ import {
   deleteItem,
   clearSelectedItem,
 } from '../../../store/itemSlice';
+import { enableStock, disableStock } from '../../../store/stockSlice';
 import { theme } from '../../../theme';
 
 export const ItemDetailScreen = () => {
@@ -24,7 +25,10 @@ export const ItemDetailScreen = () => {
   const dispatch = useAppDispatch();
 
   const { selectedItem, loading } = useAppSelector(state => state.items);
+  const stockLoading = useAppSelector(state => state.stock.loading);
   const [deleting, setDeleting] = useState(false);
+  const [enabling, setEnabling] = useState(false);
+  const [disabling, setDisabling] = useState(false);
 
   const itemId = route.params?.itemId;
 
@@ -42,6 +46,52 @@ export const ItemDetailScreen = () => {
     if (selectedItem?.id) {
       navigation.navigate('EditItem', { itemId: selectedItem.id });
     }
+  };
+
+  const handleEnableStock = async () => {
+    if (!itemId) return;
+    setEnabling(true);
+    try {
+      await dispatch(enableStock({ itemId, initialStock: 0 })).unwrap();
+      await dispatch(fetchItemById(itemId));
+      navigation.navigate('ItemStockDetail', { itemId });
+    } catch {
+      Alert.alert('Error', 'Failed to enable stock tracking.');
+    } finally {
+      setEnabling(false);
+    }
+  };
+
+  const handleViewStock = () => {
+    if (itemId) {
+      navigation.navigate('ItemStockDetail', { itemId });
+    }
+  };
+
+  const handleDisableStock = () => {
+    if (!itemId) return;
+    Alert.alert(
+      'Disable Stock Tracking',
+      'Stock will be reset to zero for this item.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disable',
+          style: 'destructive',
+          onPress: async () => {
+            setDisabling(true);
+            try {
+              await dispatch(disableStock(itemId)).unwrap();
+              await dispatch(fetchItemById(itemId));
+            } catch {
+              Alert.alert('Error', 'Failed to disable stock tracking.');
+            } finally {
+              setDisabling(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleDelete = () => {
@@ -179,6 +229,14 @@ export const ItemDetailScreen = () => {
               fontWeight: '700',
             }}
           />
+
+          {selectedItem.providerNames && selectedItem.providerNames.length > 0 && (
+            <DetailRow
+              icon="🏢"
+              label="Providers"
+              value={selectedItem.providerNames.join(', ')}
+            />
+          )}
         </View>
 
         {/* Metadata Section */}
@@ -196,6 +254,61 @@ export const ItemDetailScreen = () => {
             label="Created At"
             value={formatDate(selectedItem.createdAt)}
           />
+        </View>
+
+        {/* Stock Section */}
+        <View style={styles.stockSection}>
+          <Text style={styles.sectionTitle}>Stock</Text>
+
+          {selectedItem.stockEnabled ? (
+            <>
+              <View style={styles.stockBadge}>
+                <Text style={styles.stockBadgeText}>
+                  {selectedItem.currentStock ?? 0} in stock
+                  {selectedItem.unit ? ` ${selectedItem.unit}` : ''}
+                </Text>
+              </View>
+
+              {selectedItem.minStock != null && (
+                <Text style={styles.minStockHint}>
+                  Minimum: {selectedItem.minStock}
+                </Text>
+              )}
+
+              <View style={styles.stockActions}>
+                <TouchableOpacity
+                  style={styles.viewStockBtn}
+                  onPress={handleViewStock}
+                >
+                  <Text style={styles.viewStockBtnText}>Manage Stock</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.disableStockBtn}
+                  onPress={handleDisableStock}
+                  disabled={disabling}
+                >
+                  {disabling ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <Text style={styles.disableStockBtnText}>Disable</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={styles.enableStockBtn}
+              onPress={handleEnableStock}
+              disabled={enabling || stockLoading}
+            >
+              {enabling ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.enableStockBtnText}>Enable Stock Tracking</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Bottom Spacer */}
@@ -353,6 +466,71 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     marginTop: 12,
     padding: 20,
+  },
+  stockSection: {
+    backgroundColor: '#FFF',
+    marginTop: 12,
+    padding: 20,
+  },
+  stockBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  stockBadgeText: {
+    color: '#1D4ED8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  minStockHint: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  stockActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  enableStockBtn: {
+    backgroundColor: theme.colors.primary,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  enableStockBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  viewStockBtn: {
+    flex: 1,
+    backgroundColor: theme.colors.primary,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  viewStockBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  disableStockBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 90,
+  },
+  disableStockBtnText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '700',
   },
   sectionTitle: {
     fontSize: 16,

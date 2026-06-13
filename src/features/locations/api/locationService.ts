@@ -7,6 +7,10 @@ export interface LocationDTO {
   address: string;
   latitude: number;
   longitude: number;
+  clientId?: number | null;
+  clientName?: string;
+  providerId?: number | null;
+  providerName?: string;
 }
 
 export const locationService = {

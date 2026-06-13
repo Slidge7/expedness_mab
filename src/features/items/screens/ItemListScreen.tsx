@@ -112,11 +112,20 @@ export const ItemListScreen = () => {
 
           <View style={styles.listFooter}>
             <Text style={styles.listPrice}>${item.unitPrice?.toFixed(2)}</Text>
-            {!item.active && (
-              <View style={styles.inactiveBadge}>
-                <Text style={styles.inactiveBadgeText}>Inactive</Text>
-              </View>
-            )}
+            <View style={styles.listBadges}>
+              {item.stockEnabled && (
+                <View style={styles.stockBadge}>
+                  <Text style={styles.stockBadgeText}>
+                    {item.currentStock ?? 0} in stock
+                  </Text>
+                </View>
+              )}
+              {!item.active && (
+                <View style={styles.inactiveBadge}>
+                  <Text style={styles.inactiveBadgeText}>Inactive</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -451,6 +460,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  listBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stockBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  stockBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1D4ED8',
   },
   listPrice: {
     fontSize: 20,

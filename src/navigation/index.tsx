@@ -8,16 +8,28 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LoginScreen } from '../features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../features/auth/screens/RegisterScreen';
 import { DashboardScreen } from '../features/dashboard/screens/DashboardScreen';
-import { LocationListScreen } from '../features/locations/screens/LocationListScreen';
 import { CreateLocationScreen } from '../features/locations/screens/CreateLocationScreen';
+import { LocationDetailScreen } from '../features/locations/screens/LocationDetailScreen';
+import { EditLocationScreen } from '../features/locations/screens/EditLocationScreen';
 import { TransactionListScreen } from '../features/transactions/screens/TransactionListScreen';
 import { CreateTransactionScreen } from '../features/transactions/screens/CreateTransactionScreen';
-import { MissionListScreen } from '../features/missions/api/screens/MissionListScreen';
+import { CreateMissionScreen } from '../features/missions/api/screens/CreateMissionScreen';
+import { MissionDetailScreen } from '../features/missions/api/screens/MissionDetailScreen';
+import { EditMissionScreen } from '../features/missions/api/screens/EditMissionScreen';
+import { ManagementScreen } from '../features/management/screens/ManagementScreen';
 import { ItemListScreen } from '../features/items/screens/ItemListScreen';
 import { CreateItemScreen } from '../features/items/screens/CreateItemScreen';
 import { EditItemScreen } from '../features/items/screens/EditItemScreen';
 import { ItemDetailScreen } from '../features/items/screens/ItemDetailScreen';
 import { ProfileScreen } from '../features/auth/screens/ProfileScreen';
+import { CreateClientScreen } from '../features/clients/screens/CreateClientScreen';
+import { EditClientScreen } from '../features/clients/screens/EditClientScreen';
+import { ClientDetailScreen } from '../features/clients/screens/ClientDetailScreen';
+import { CreateProviderScreen } from '../features/providers/screens/CreateProviderScreen';
+import { EditProviderScreen } from '../features/providers/screens/EditProviderScreen';
+import { ProviderDetailScreen } from '../features/providers/screens/ProviderDetailScreen';
+import { StockListScreen } from '../features/stock/screens/StockListScreen';
+import { ItemStockDetailScreen } from '../features/stock/screens/ItemStockDetailScreen';
 
 // Redux
 import { useAppSelector } from '../store/hooks';
@@ -63,10 +75,8 @@ const MainTabs = () => (
         let iconName;
         if (route.name === 'Dashboard') {
           iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'Missions') {
-          iconName = focused ? 'list' : 'list-outline';
-        } else if (route.name === 'Locations') {
-          iconName = focused ? 'location' : 'location-outline';
+        } else if (route.name === 'Manage') {
+          iconName = focused ? 'briefcase' : 'briefcase-outline';
         } else if (route.name === 'Transactions') {
           iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
         } else if (route.name === 'Items') {
@@ -84,14 +94,9 @@ const MainTabs = () => (
       options={{ title: 'Home' }}
     />
     <Tab.Screen
-      name="Missions"
-      component={MissionListScreen}
-      options={{ title: 'Missions' }}
-    />
-    <Tab.Screen
-      name="Locations"
-      component={LocationListScreen}
-      options={{ title: 'Locations' }}
+      name="Manage"
+      component={ManagementScreen}
+      options={{ title: 'Manage' }}
     />
     <Tab.Screen
       name="Transactions"
@@ -128,6 +133,20 @@ export const AppNavigator = () => {
                 ...headerWithBack,
                 presentation: 'modal',
                 title: 'New Location',
+              }}
+            />
+            <Stack.Screen
+              name="LocationDetail"
+              component={LocationDetailScreen}
+              options={{ ...headerWithBack, title: 'Location Details' }}
+            />
+            <Stack.Screen
+              name="EditLocation"
+              component={EditLocationScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'Edit Location',
               }}
             />
             <Stack.Screen
@@ -171,6 +190,85 @@ export const AppNavigator = () => {
               name="EditTransaction"
               component={EditTransactionScreen}
               options={{ ...headerWithBack, title: 'Edit Transaction' }}
+            />
+            <Stack.Screen
+              name="CreateClient"
+              component={CreateClientScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'New Client',
+              }}
+            />
+            <Stack.Screen
+              name="ClientDetail"
+              component={ClientDetailScreen}
+              options={{ ...headerWithBack, title: 'Client Details' }}
+            />
+            <Stack.Screen
+              name="EditClient"
+              component={EditClientScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'Edit Client',
+              }}
+            />
+            <Stack.Screen
+              name="CreateProvider"
+              component={CreateProviderScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'New Provider',
+              }}
+            />
+            <Stack.Screen
+              name="ProviderDetail"
+              component={ProviderDetailScreen}
+              options={{ ...headerWithBack, title: 'Provider Details' }}
+            />
+            <Stack.Screen
+              name="EditProvider"
+              component={EditProviderScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'Edit Provider',
+              }}
+            />
+            <Stack.Screen
+              name="CreateMission"
+              component={CreateMissionScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'New Mission',
+              }}
+            />
+            <Stack.Screen
+              name="MissionDetail"
+              component={MissionDetailScreen}
+              options={{ ...headerWithBack, title: 'Mission Details' }}
+            />
+            <Stack.Screen
+              name="EditMission"
+              component={EditMissionScreen}
+              options={{
+                ...headerWithBack,
+                presentation: 'modal',
+                title: 'Edit Mission',
+              }}
+            />
+            <Stack.Screen
+              name="StockList"
+              component={StockListScreen}
+              options={{ ...headerWithBack, title: 'Stock' }}
+            />
+            <Stack.Screen
+              name="ItemStockDetail"
+              component={ItemStockDetailScreen}
+              options={{ ...headerWithBack, title: 'Item Stock' }}
             />
           </Stack.Group>
         ) : (

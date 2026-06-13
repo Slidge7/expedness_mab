@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -47,8 +47,23 @@ export const CategoryPicker: React.FC<Props> = ({ value, onChange }) => {
     query.trim().length > 0 &&
     !categories.some(c => c.name.toLowerCase() === query.toLowerCase());
 
-  const handleSelect = (name: string) => {
-    onChange(name);
+  const handleSelect = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const exists = categories.some(
+      c => c.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (!exists) {
+      try {
+        await categoryService.create({ name: trimmed });
+        setCategories(prev => [...prev, { name: trimmed }]);
+      } catch (e) {
+        console.error('Failed to create category', e);
+      }
+    }
+
+    onChange(trimmed);
     setQuery('');
     setOpen(false);
   };
@@ -144,8 +159,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    marginTop: 5,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F8FAFC',
   },
   triggerText: { fontSize: 15, color: '#334155', flex: 1 },
   triggerPlaceholder: { fontSize: 15, color: '#94A3B8', flex: 1 },

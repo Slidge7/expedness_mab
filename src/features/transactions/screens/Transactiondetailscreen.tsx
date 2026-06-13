@@ -149,6 +149,14 @@ export const TransactionDetailScreen = () => {
             label="Location"
             value={tx.locationId ? `#${tx.locationId}` : null}
           />
+          <InfoRow
+            label="Client"
+            value={tx.clientName ?? (tx.clientId ? `#${tx.clientId}` : null)}
+          />
+          <InfoRow
+            label="Provider"
+            value={tx.providerName ?? (tx.providerId ? `#${tx.providerId}` : null)}
+          />
         </View>
 
         {/* ── Items ── */}

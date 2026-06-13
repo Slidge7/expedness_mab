@@ -1,0 +1,303 @@
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Modal,
+} from 'react-native';
+import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
+import {
+  providerService,
+  ProviderDTO,
+  ContactDTO,
+} from '../api/providerService';
+import { theme } from '../../../theme';
+
+export const ProviderDetailScreen = () => {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const providerId = route.params?.providerId as number;
+  const isFocused = useIsFocused();
+
+  const [provider, setProvider] = useState<ProviderDTO | null>(null);
+  const [contacts, setContacts] = useState<ContactDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<ContactDTO | null>(null);
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    notes: '',
+  });
+
+  const loadData = async () => {
+    try {
+      const [providerData, contactData] = await Promise.all([
+        providerService.getById(providerId),
+        providerService.getContacts(providerId),
+      ]);
+      setProvider(providerData);
+      setContacts(contactData);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to load provider details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [providerId, isFocused]);
+
+  const openAddContact = () => {
+    setEditingContact(null);
+    setContactForm({ name: '', email: '', phone: '', role: '', notes: '' });
+    setModalOpen(true);
+  };
+
+  const openEditContact = (contact: ContactDTO) => {
+    setEditingContact(contact);
+    setContactForm({
+      name: contact.name,
+      email: contact.email || '',
+      phone: contact.phone || '',
+      role: contact.role || '',
+      notes: contact.notes || '',
+    });
+    setModalOpen(true);
+  };
+
+  const saveContact = async () => {
+    if (!contactForm.name.trim()) {
+      Alert.alert('Error', 'Contact name is required');
+      return;
+    }
+    try {
+      if (editingContact?.id) {
+        await providerService.updateContact(
+          providerId,
+          editingContact.id,
+          contactForm,
+        );
+      } else {
+        await providerService.createContact(providerId, contactForm);
+      }
+      setModalOpen(false);
+      await loadData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save contact.');
+    }
+  };
+
+  const handleDeleteProvider = () => {
+    Alert.alert(
+      'Delete Provider',
+      `Remove ${provider?.name}? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await providerService.delete(providerId);
+              navigation.goBack();
+            } catch {
+              Alert.alert('Error', 'Failed to delete provider.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const deleteContact = (contact: ContactDTO) => {
+    Alert.alert('Delete Contact', `Remove ${contact.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await providerService.deleteContact(providerId, contact.id!);
+            await loadData();
+          } catch (e) {
+            Alert.alert('Error', 'Failed to delete contact.');
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <ActivityIndicator
+        size="large"
+        color={theme.colors.primary}
+        style={{ flex: 1 }}
+      />
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+      <Text style={styles.title}>{provider?.name}</Text>
+      {provider?.company ? (
+        <Text style={styles.subtitle}>{provider.company}</Text>
+      ) : null}
+      {provider?.description ? (
+        <Text style={styles.description}>{provider.description}</Text>
+      ) : null}
+      {(provider?.city || provider?.address) && (
+        <Text style={styles.meta}>
+          {[provider?.city, provider?.address].filter(Boolean).join(' · ')}
+        </Text>
+      )}
+
+      <TouchableOpacity
+        style={styles.editBtn}
+        onPress={() => navigation.navigate('EditProvider', { providerId })}
+      >
+        <Text style={styles.editText}>Edit Provider</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteProvider}>
+        <Text style={styles.deleteText}>Delete Provider</Text>
+      </TouchableOpacity>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Contacts ({contacts.length})</Text>
+        <TouchableOpacity onPress={openAddContact}>
+          <Text style={styles.addLink}>+ Add</Text>
+        </TouchableOpacity>
+      </View>
+
+      {contacts.length === 0 ? (
+        <Text style={styles.empty}>No contacts yet.</Text>
+      ) : (
+        contacts.map(contact => (
+          <TouchableOpacity
+            key={contact.id}
+            style={styles.contactCard}
+            onPress={() => openEditContact(contact)}
+            onLongPress={() => deleteContact(contact)}
+          >
+            <Text style={styles.contactName}>{contact.name}</Text>
+            {contact.role ? <Text style={styles.contactRole}>{contact.role}</Text> : null}
+            {contact.email ? <Text style={styles.contactMeta}>{contact.email}</Text> : null}
+            {contact.phone ? <Text style={styles.contactMeta}>{contact.phone}</Text> : null}
+          </TouchableOpacity>
+        ))
+      )}
+
+      <Modal visible={modalOpen} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {editingContact ? 'Edit Contact' : 'New Contact'}
+            </Text>
+            {(['name', 'email', 'phone', 'role', 'notes'] as const).map(field => (
+              <View key={field}>
+                <Text style={styles.label}>
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={contactForm[field]}
+                  onChangeText={t =>
+                    setContactForm(prev => ({ ...prev, [field]: t }))
+                  }
+                  placeholder={field === 'name' ? 'Required' : 'Optional'}
+                />
+              </View>
+            ))}
+            <TouchableOpacity style={styles.saveButton} onPress={saveContact}>
+              <Text style={styles.saveText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setModalOpen(false)}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F1F5F9' },
+  title: { fontSize: 24, fontWeight: '700', color: '#1E293B' },
+  subtitle: { fontSize: 16, color: '#64748B', marginTop: 4 },
+  description: { fontSize: 14, color: '#475569', marginTop: 8 },
+  meta: { fontSize: 13, color: '#94A3B8', marginTop: 8 },
+  editBtn: {
+    backgroundColor: theme.colors.primary,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  editText: { color: '#fff', fontWeight: '700' },
+  deleteBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  deleteText: { color: '#DC2626', fontWeight: '600' },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#334155' },
+  addLink: { color: theme.colors.primary, fontWeight: '700' },
+  empty: { color: '#94A3B8', textAlign: 'center', paddingVertical: 20 },
+  contactCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+  },
+  contactName: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  contactRole: { fontSize: 13, color: theme.colors.primary, marginTop: 2 },
+  contactMeta: { fontSize: 13, color: '#64748B', marginTop: 2 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '85%',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  label: { fontSize: 13, fontWeight: '600', color: '#475569', marginTop: 10 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 4,
+  },
+  saveButton: {
+    backgroundColor: theme.colors.primary,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  saveText: { color: '#fff', fontWeight: '700' },
+  cancelButton: { padding: 14, alignItems: 'center' },
+  cancelText: { color: '#64748B', fontWeight: '600' },
+});

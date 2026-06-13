@@ -9,7 +9,6 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import {
   transactionService,
@@ -18,9 +17,16 @@ import {
 import { fetchMissions } from '../../../store/missionSlice';
 import { fetchLocations } from '../../../store/locationSlice';
 import { fetchItems } from '../../../store/itemSlice';
+import { fetchClients } from '../../../store/clientSlice';
+import { fetchProviders } from '../../../store/providerSlice';
 import { theme } from '../../../theme';
 import { AddItemModal } from '../components/AddItemModal';
 import { CategoryPicker } from '../components/CategoryPicker';
+import { OptionalEntityPicker } from '../components/OptionalEntityPicker';
+import {
+  TransactionPartyPicker,
+  PartyMode,
+} from '../components/TransactionPartyPicker';
 
 export const CreateTransactionScreen = () => {
   const navigation = useNavigation();
@@ -28,14 +34,19 @@ export const CreateTransactionScreen = () => {
 
   const missions = useAppSelector(state => state.missions.items);
   const locations = useAppSelector(state => state.locations.items);
+  const clients = useAppSelector(state => state.clients.items);
+  const providers = useAppSelector(state => state.providers.items);
   const user = useAppSelector(state => state.auth.user);
 
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [fuelTank, setFuelTank] = useState<'ft1' | 'ft2' | 'ft3'>('ft1');
   const [category, setCategory] = useState<string>('');
-  const [missionId, setMissionId] = useState<number | undefined>(undefined);
-  const [locationId, setLocationId] = useState<number | undefined>(undefined);
+  const [missionId, setMissionId] = useState<number | null>(null);
+  const [locationId, setLocationId] = useState<number | null>(null);
+  const [partyMode, setPartyMode] = useState<PartyMode>('none');
+  const [clientId, setClientId] = useState<number | null>(null);
+  const [providerId, setProviderId] = useState<number | null>(null);
   const [snapBalance, setSnapBalance] = useState<
     'AFTER' | 'BEFORE' | undefined
   >(undefined);
@@ -47,6 +58,8 @@ export const CreateTransactionScreen = () => {
     dispatch(fetchMissions());
     dispatch(fetchLocations());
     dispatch(fetchItems());
+    dispatch(fetchClients());
+    dispatch(fetchProviders());
   }, [dispatch]);
 
   const handleAddItems = (items: TransactionItemDTO[]) => {
@@ -78,8 +91,10 @@ export const CreateTransactionScreen = () => {
         type,
         fuelTank,
         category: category || undefined,
-        missionId,
-        locationId,
+        missionId: missionId ?? null,
+        locationId: locationId ?? null,
+        clientId: partyMode === 'client' ? clientId : null,
+        providerId: partyMode === 'provider' ? providerId : null,
         userId: user?.id,
         snapBalance,
         transactionDate: new Date().toISOString(),
@@ -155,24 +170,42 @@ export const CreateTransactionScreen = () => {
           />
 
           <Text style={styles.label}>Mission (Optional)</Text>
-          <View style={styles.pickerBox}>
-            <Picker selectedValue={missionId} onValueChange={setMissionId}>
-              <Picker.Item label="-- None --" value={undefined} />
-              {missions.map(m => (
-                <Picker.Item key={m.id} label={m.title} value={m.id} />
-              ))}
-            </Picker>
-          </View>
+          <OptionalEntityPicker
+            title="Mission"
+            value={missionId}
+            onChange={setMissionId}
+            items={missions
+              .filter(m => m.id != null)
+              .map(m => ({ id: m.id!, label: m.title }))}
+          />
 
           <Text style={styles.label}>Location (Optional)</Text>
-          <View style={styles.pickerBox}>
-            <Picker selectedValue={locationId} onValueChange={setLocationId}>
-              <Picker.Item label="-- None --" value={undefined} />
-              {locations.map(l => (
-                <Picker.Item key={l.id} label={l.name} value={l.id} />
-              ))}
-            </Picker>
-          </View>
+          <OptionalEntityPicker
+            title="Location"
+            value={locationId}
+            onChange={setLocationId}
+            items={locations
+              .filter(l => l.id != null)
+              .map(l => ({ id: l.id!, label: l.name }))}
+          />
+
+          <Text style={styles.label}>Client or Provider (Optional)</Text>
+          <TransactionPartyPicker
+            mode={partyMode}
+            clientId={clientId}
+            providerId={providerId}
+            clients={clients
+              .filter(c => c.id != null)
+              .map(c => ({ id: c.id!, label: c.name }))}
+            providers={providers
+              .filter(p => p.id != null)
+              .map(p => ({ id: p.id!, label: p.name }))}
+            onChange={(mode, nextClientId, nextProviderId) => {
+              setPartyMode(mode);
+              setClientId(nextClientId);
+              setProviderId(nextProviderId);
+            }}
+          />
         </View>
 
         {/* ── Items ── */}
@@ -332,12 +365,6 @@ const styles = StyleSheet.create({
   ftBtnActive: {
     backgroundColor: '#0F172A',
     borderColor: '#0F172A',
-  },
-  pickerBox: {
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    marginTop: 5,
   },
   addLink: { color: theme.colors.primary, fontWeight: 'bold', fontSize: 14 },
   itemRow: {

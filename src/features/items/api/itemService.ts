@@ -15,6 +15,11 @@ export interface ItemDTO {
   createdBy?: string;
   imageSmall?: string | null; // Base64 string
   imageMedium?: string | null; // Base64 string
+  providerIds?: number[];
+  providerNames?: string[];
+  stockEnabled?: boolean;
+  currentStock?: number;
+  minStock?: number | null;
 }
 
 export interface CreateItemData {
@@ -25,6 +30,7 @@ export interface CreateItemData {
   type: TransactionType;
   unit?: string;
   active: boolean;
+  providerIds?: number[];
 }
 
 export const itemService = {

@@ -20,13 +20,18 @@ import {
   uploadItemImage,
   deleteItemImage,
 } from '../../../store/itemSlice';
+import { fetchProviders } from '../../../store/providerSlice';
 import { theme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import { CategoryPicker } from '../../transactions/components/CategoryPicker';
+import { MultiProviderPicker } from '../../transactions/components/MultiProviderPicker';
 
 export const EditItemScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const providers = useAppSelector(state => state.providers.items);
+  const [providerIds, setProviderIds] = useState<number[]>([]);
 
   const { selectedItem, loading } = useAppSelector(state => state.items);
   const [saving, setSaving] = useState(false);
@@ -59,6 +64,7 @@ export const EditItemScreen = () => {
     if (itemId) {
       dispatch(fetchItemById(itemId));
     }
+    dispatch(fetchProviders());
   }, [itemId, dispatch]);
 
   useEffect(() => {
@@ -72,6 +78,7 @@ export const EditItemScreen = () => {
         unit: selectedItem.unit || 'pcs',
         active: selectedItem.active,
       });
+      setProviderIds(selectedItem.providerIds ?? []);
       if (selectedItem.imageMedium) {
         setImageUri(`data:image/jpeg;base64,${selectedItem.imageMedium}`);
         setHasExistingImage(true);
@@ -210,6 +217,7 @@ export const EditItemScreen = () => {
             type: form.type,
             unit: form.unit.trim() || undefined,
             active: form.active,
+            providerIds,
           },
         }),
       ).unwrap();
@@ -383,12 +391,20 @@ export const EditItemScreen = () => {
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Category</Text>
-          <TextInput
-            style={styles.input}
+          <CategoryPicker
             value={form.category}
-            onChangeText={t => setForm({ ...form, category: t })}
-            placeholder="e.g. Electronics, Food, Service"
-            placeholderTextColor="#94A3B8"
+            onChange={name => setForm({ ...form, category: name })}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Providers (Optional)</Text>
+          <MultiProviderPicker
+            value={providerIds}
+            onChange={setProviderIds}
+            items={providers
+              .filter(p => p.id != null)
+              .map(p => ({ id: p.id!, label: p.name }))}
           />
         </View>
 

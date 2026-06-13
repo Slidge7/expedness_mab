@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,23 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useAppDispatch } from '../../../store/hooks';
+import { fetchClients } from '../../../store/clientSlice';
+import { fetchProviders } from '../../../store/providerSlice';
 import { locationService } from '../api/locationService';
+import { OptionalClientPicker } from '../../transactions/components/OptionalClientPicker';
+import { OptionalProviderPicker } from '../../transactions/components/OptionalProviderPicker';
 import { theme } from '../../../theme';
 
 export const CreateLocationScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchClients());
+    dispatch(fetchProviders());
+  }, [dispatch]);
 
   // Form State
   const [form, setForm] = useState({
@@ -24,6 +35,8 @@ export const CreateLocationScreen = () => {
     address: '',
     latitude: '',
     longitude: '',
+    clientId: null as number | null,
+    providerId: null as number | null,
   });
 
   const handleSave = async () => {
@@ -41,6 +54,8 @@ export const CreateLocationScreen = () => {
         address: form.address,
         latitude: parseFloat(form.latitude) || 0,
         longitude: parseFloat(form.longitude) || 0,
+        clientId: form.clientId,
+        providerId: form.providerId,
       });
 
       Alert.alert('Success', 'Location created successfully!');
@@ -107,6 +122,18 @@ export const CreateLocationScreen = () => {
           />
         </View>
       </View>
+
+      <Text style={styles.label}>Client (Optional)</Text>
+      <OptionalClientPicker
+        value={form.clientId}
+        onChange={clientId => setForm({ ...form, clientId })}
+      />
+
+      <Text style={styles.label}>Provider (Optional)</Text>
+      <OptionalProviderPicker
+        value={form.providerId}
+        onChange={providerId => setForm({ ...form, providerId })}
+      />
 
       <TouchableOpacity
         style={styles.saveButton}

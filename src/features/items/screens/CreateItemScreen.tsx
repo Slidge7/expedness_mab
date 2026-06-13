@@ -15,8 +15,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch } from '../../../store/hooks';
 import { createItem } from '../../../store/itemSlice';
+import { fetchProviders } from '../../../store/providerSlice';
 import { theme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import { CategoryPicker } from '../../transactions/components/CategoryPicker';
+import { MultiProviderPicker } from '../../transactions/components/MultiProviderPicker';
 
 export const CreateItemScreen = () => {
   const navigation = useNavigation();
@@ -24,6 +27,20 @@ export const CreateItemScreen = () => {
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tempImageFile, setTempImageFile] = useState<any>(null);
+  const [providerIds, setProviderIds] = useState<number[]>([]);
+  const [providers, setProviders] = useState<{ id: number; label: string }[]>([]);
+
+  React.useEffect(() => {
+    dispatch(fetchProviders()).then(action => {
+      if (fetchProviders.fulfilled.match(action)) {
+        setProviders(
+          action.payload
+            .filter(p => p.id != null)
+            .map(p => ({ id: p.id!, label: p.name })),
+        );
+      }
+    });
+  }, [dispatch]);
 
   const [form, setForm] = useState({
     name: '',
@@ -112,6 +129,7 @@ export const CreateItemScreen = () => {
             type: form.type,
             unit: form.unit.trim() || undefined,
             active: form.active,
+            providerIds,
           },
           imageFile: tempImageFile ?? undefined,
         }),
@@ -270,12 +288,18 @@ export const CreateItemScreen = () => {
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Category</Text>
-          <TextInput
-            style={styles.input}
+          <CategoryPicker
             value={form.category}
-            onChangeText={t => setForm({ ...form, category: t })}
-            placeholder="e.g. Electronics, Food, Service"
-            placeholderTextColor="#94A3B8"
+            onChange={name => setForm({ ...form, category: name })}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Providers (Optional)</Text>
+          <MultiProviderPicker
+            value={providerIds}
+            onChange={setProviderIds}
+            items={providers}
           />
         </View>
 

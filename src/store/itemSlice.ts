@@ -6,6 +6,11 @@ import {
   CreateItemData,
 } from '../features/items/api/itemService';
 import { Platform } from 'react-native';
+import {
+  enableStock,
+  disableStock,
+  adjustStock,
+} from './stockSlice';
 
 interface ItemState {
   items: ItemDTO[];
@@ -331,6 +336,28 @@ const itemSlice = createSlice({
       .addCase(deleteItemImage.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to delete image';
+      })
+
+      .addCase(enableStock.fulfilled, (state, action) => {
+        const index = state.items.findIndex(i => i.id === action.payload.id);
+        if (index !== -1) state.items[index] = action.payload;
+        if (state.selectedItem?.id === action.payload.id) {
+          state.selectedItem = action.payload;
+        }
+      })
+      .addCase(disableStock.fulfilled, (state, action) => {
+        const index = state.items.findIndex(i => i.id === action.payload.id);
+        if (index !== -1) state.items[index] = action.payload;
+        if (state.selectedItem?.id === action.payload.id) {
+          state.selectedItem = action.payload;
+        }
+      })
+      .addCase(adjustStock.fulfilled, (state, action) => {
+        const index = state.items.findIndex(i => i.id === action.payload.id);
+        if (index !== -1) state.items[index] = action.payload;
+        if (state.selectedItem?.id === action.payload.id) {
+          state.selectedItem = action.payload;
+        }
       });
   },
 });

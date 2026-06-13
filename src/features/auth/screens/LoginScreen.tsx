@@ -13,6 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { authService } from '../api/authService';
 import apiClient from '../../../api/client';
+import { DEMO_ACCOUNT } from '../demoAccount';
+import {
+  ensureDemoAccountRegistered,
+  ensureDemoStockData,
+} from '../demoSeedService';
 import { theme } from '../../../theme';
 
 // REDUX IMPORTS
@@ -35,20 +40,46 @@ export const LoginScreen = () => {
 
     setLoading(true);
     try {
-      // 1. API Call
-      const data = await authService.login({ username, password });
-
-      // 2. Dispatch to Redux (Updates State + Saves to Storage)
-      await dispatch(loginSuccess(data));
-
-      // Navigation happens automatically via AppNavigator
+      await performLogin(username, password);
     } catch (error: any) {
       console.log('Login Error:', error);
       const msg =
         error.response?.status === 401
           ? 'Invalid Username or Password'
           : 'Network Error. Check your connection.';
-      Alert.alert('Login Failed', msg);
+      if (Platform.OS === 'web') {
+        window.alert(`Login Failed\n${msg}`);
+      } else {
+        Alert.alert('Login Failed', msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const performLogin = async (user: string, pass: string) => {
+    const data = await authService.login({ username: user, password: pass });
+    await dispatch(loginSuccess(data));
+  };
+
+  const handleDemoLogin = async () => {
+    setUsername(DEMO_ACCOUNT.username);
+    setPassword(DEMO_ACCOUNT.password);
+    setLoading(true);
+    try {
+      const auth = await ensureDemoAccountRegistered();
+      await dispatch(loginSuccess(auth));
+      await ensureDemoStockData();
+    } catch (error: any) {
+      const msg =
+        error.response?.status === 401
+          ? 'Demo account login failed after registration.'
+          : error.message || 'Network Error. Check your connection and backend.';
+      if (Platform.OS === 'web') {
+        window.alert(`Demo Login Failed\n${msg}`);
+      } else {
+        Alert.alert('Demo Login Failed', msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -111,6 +142,14 @@ export const LoginScreen = () => {
             ) : (
               <Text style={styles.buttonText}>Access Dashboard</Text>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.demoButton}
+            onPress={handleDemoLogin}
+            disabled={loading}
+          >
+            <Text style={styles.demoButtonText}>Use Demo Account (farisse)</Text>
           </TouchableOpacity>
 
           {/* Navigation to Register */}
@@ -182,6 +221,16 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.s,
   },
   buttonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+  demoButton: {
+    height: 44,
+    borderRadius: theme.radius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    backgroundColor: '#F0FDF4',
+  },
+  demoButtonText: { color: theme.colors.primary, fontWeight: '700', fontSize: 14 },
   linkButton: { marginTop: theme.spacing.m, alignItems: 'center' },
   linkText: { color: theme.colors.textSecondary, fontSize: 14 },
   linkBold: { color: theme.colors.primary, fontWeight: '700' },

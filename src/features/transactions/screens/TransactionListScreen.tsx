@@ -105,6 +105,18 @@ export const TransactionListScreen = () => {
                 </Text>
               </View>
             )}
+            {item.clientName && (
+              <View style={styles.badgeGray}>
+                <Text style={styles.badgeTextDark}>Client: {item.clientName}</Text>
+              </View>
+            )}
+            {item.providerName && (
+              <View style={styles.badgeGray}>
+                <Text style={styles.badgeTextDark}>
+                  Provider: {item.providerName}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
