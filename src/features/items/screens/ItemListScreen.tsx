@@ -13,9 +13,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { fetchItems, deleteItem } from '../../../store/itemSlice';
+import { fetchItems } from '../../../store/itemSlice';
 import { theme } from '../../../theme';
-import { ItemDTO } from '../api/itemService';
+import { ItemDTO, TransactionType } from '../api/itemService';
+import { CollapsibleItemForm } from '../components/CollapsibleItemForm';
+import { DEFAULT_ITEM_CATEGORY } from '../constants';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +34,14 @@ export const ItemListScreen = () => {
     'ALL',
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [formExpanded, setFormExpanded] = useState(false);
+  const [editingItem, setEditingItem] = useState<ItemDTO | null>(null);
+
+  const resolveCreateItemType = (): TransactionType => {
+    if (filterType === 'INCOME') return 'INCOME';
+    if (filterType === 'EXPENSE') return 'EXPENSE';
+    return 'EXPENSE';
+  };
 
   useEffect(() => {
     dispatch(fetchItems());
@@ -51,7 +61,31 @@ export const ItemListScreen = () => {
     return matchesSearch && matchesType;
   });
 
+  const openCreateForm = () => {
+    setEditingItem(null);
+    setFormExpanded(true);
+  };
+
+  const openEditForm = (item: ItemDTO) => {
+    setEditingItem(item);
+    setFormExpanded(true);
+  };
+
+  const closeForm = () => {
+    setFormExpanded(false);
+    setEditingItem(null);
+  };
+
+  const handleFormSaved = async () => {
+    closeForm();
+    await dispatch(fetchItems());
+  };
+
   const handleItemPress = (item: ItemDTO) => {
+    openEditForm(item);
+  };
+
+  const handleItemDetailPress = (item: ItemDTO) => {
     navigation.navigate('ItemDetail', { itemId: item.id });
   };
 
@@ -106,7 +140,7 @@ export const ItemListScreen = () => {
           </View>
 
           <Text style={styles.listCategory} numberOfLines={1}>
-            {item.category || 'Uncategorized'}{' '}
+            {item.category || DEFAULT_ITEM_CATEGORY}{' '}
             {item.unit ? `• ${item.unit}` : ''}
           </Text>
 
@@ -128,6 +162,14 @@ export const ItemListScreen = () => {
             </View>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={styles.detailBtn}
+          onPress={() => handleItemDetailPress(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.detailBtnText}>⋯</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -173,7 +215,7 @@ export const ItemListScreen = () => {
           {item.name}
         </Text>
         <Text style={styles.gridCategory} numberOfLines={1}>
-          {item.category || 'Uncategorized'}
+          {item.category || DEFAULT_ITEM_CATEGORY}
         </Text>
         <Text style={styles.gridPrice}>${item.unitPrice?.toFixed(2)}</Text>
 
@@ -256,6 +298,21 @@ export const ItemListScreen = () => {
         </View>
       </View>
 
+      <CollapsibleItemForm
+        expanded={formExpanded}
+        onToggle={() => {
+          if (formExpanded) {
+            closeForm();
+          } else {
+            openCreateForm();
+          }
+        }}
+        itemType={resolveCreateItemType()}
+        editItem={editingItem}
+        onSaved={handleFormSaved}
+        onCancel={closeForm}
+      />
+
       {/* Items List/Grid */}
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
@@ -289,14 +346,6 @@ export const ItemListScreen = () => {
           }
         />
       )}
-
-      {/* FAB to Add Item */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('CreateItem')}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -386,7 +435,7 @@ const styles = StyleSheet.create({
   // List View
   listContent: {
     padding: 16,
-    paddingBottom: 80,
+    paddingBottom: 24,
   },
   listCard: {
     backgroundColor: '#FFF',
@@ -400,7 +449,17 @@ const styles = StyleSheet.create({
   },
   listCardContent: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
+  },
+  detailBtn: {
+    paddingLeft: 8,
+    paddingVertical: 4,
+  },
+  detailBtnText: {
+    fontSize: 20,
+    color: '#94A3B8',
+    fontWeight: '700',
   },
   listImageContainer: {
     marginRight: 12,
@@ -587,28 +646,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     textAlign: 'center',
-  },
-
-  // FAB
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  fabText: {
-    color: '#FFF',
-    fontSize: 28,
-    fontWeight: '300',
   },
 });

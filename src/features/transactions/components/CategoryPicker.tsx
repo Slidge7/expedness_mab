@@ -15,9 +15,14 @@ import { theme } from '../../../theme';
 interface Props {
   value?: string;
   onChange: (name: string) => void;
+  required?: boolean;
 }
 
-export const CategoryPicker: React.FC<Props> = ({ value, onChange }) => {
+export const CategoryPicker: React.FC<Props> = ({
+  value,
+  onChange,
+  required = false,
+}) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
@@ -49,7 +54,10 @@ export const CategoryPicker: React.FC<Props> = ({ value, onChange }) => {
 
   const handleSelect = async (name: string) => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      if (required && value) return;
+      return;
+    }
 
     const exists = categories.some(
       c => c.name.toLowerCase() === trimmed.toLowerCase(),
