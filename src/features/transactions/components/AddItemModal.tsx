@@ -119,7 +119,7 @@ export const AddItemModal = ({
         ...prev,
         [item.id!]: {
           itemId: item.id,
-          category: item.category || item.name || '',
+          category: item.category,
           quantity: 1,
           unitPrice: item.unitPrice || 0,
           reason: item.description || '',
@@ -157,7 +157,7 @@ export const AddItemModal = ({
 
   const openDetails = (item: ItemDTO) => {
     setSelectedItemId(item.id);
-    setCategory(item.category || item.name || '');
+    setCategory(item.category || '');
     setUnitPrice(item.unitPrice?.toString() || '');
     setReason(item.description || item.reason || '');
     setQuantity(localCart[item.id!]?.quantity || 1);
@@ -169,7 +169,7 @@ export const AddItemModal = ({
     setSelectedItemId(id);
     const item = inventoryItems.find(i => i.id === id);
     if (item) {
-      setCategory(item.category || item.name || '');
+      setCategory(item.category || '');
       setUnitPrice(item.unitPrice?.toString() || '');
       setReason(item.description || item.reason || '');
       setQuantity(localCart[id]?.quantity || 1);
@@ -177,8 +177,8 @@ export const AddItemModal = ({
   };
 
   const handleSaveDetail = () => {
-    if (!unitPrice || !category) {
-      alert('Please fill in Category and Unit Price.');
+    if (!unitPrice) {
+      alert('Please fill in Unit Price.');
       return;
     }
     const newItem: TransactionItemDTO = {
@@ -502,28 +502,28 @@ export const AddItemModal = ({
               <View style={styles.inputGroup}>
                 <Text style={styles.fieldLabel}>TRANSACTION TYPE</Text>
                 <View style={styles.typeContainer}>
-                  {(['EXPENSE', 'INCOME'] as const).map(t => (
+                  {(['EXPENSE', 'INCOME'] as const).map(type => (
                     <TouchableOpacity
-                      key={t}
-                      onPress={() => setCreateForm({ ...createForm, type: t })}
+                      key={type}
+                      onPress={() => setCreateForm({ ...createForm, type })}
                       style={[
                         styles.typeBtn,
-                        createForm.type === t && styles.typeBtnActive,
-                        createForm.type === t &&
-                          t === 'INCOME' &&
+                        createForm.type === type && styles.typeBtnActive,
+                        createForm.type === type &&
+                          type === 'INCOME' &&
                           styles.typeBtnActiveIncome,
-                        createForm.type === t &&
-                          t === 'EXPENSE' &&
+                        createForm.type === type &&
+                          type === 'EXPENSE' &&
                           styles.typeBtnActiveExpense,
                       ]}
                     >
                       <Text
                         style={[
                           styles.typeText,
-                          createForm.type === t && { color: '#FFF' },
+                          createForm.type === type && { color: '#FFF' },
                         ]}
                       >
-                        {t}
+                        {type}
                       </Text>
                     </TouchableOpacity>
                   ))}

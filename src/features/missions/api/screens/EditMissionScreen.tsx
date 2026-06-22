@@ -17,10 +17,13 @@ import { missionService } from '../missionService';
 import { OptionalClientPicker } from '../../../transactions/components/OptionalClientPicker';
 import { OptionalProviderPicker } from '../../../transactions/components/OptionalProviderPicker';
 import { theme } from '../../../../theme';
+import { useTranslation } from 'react-i18next';
+import { translateMissionStatus } from '../../../../i18n/helpers';
 
 export const EditMissionScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
+  const { t } = useTranslation();
   const missionId = route.params?.missionId as number;
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
@@ -48,15 +51,15 @@ export const EditMissionScreen = () => {
         });
       })
       .catch(() => {
-        Alert.alert('Error', 'Failed to load mission.');
+        Alert.alert(t('common.error'), t('missions.load_failed'));
         navigation.goBack();
       })
       .finally(() => setFetching(false));
-  }, [missionId, dispatch, navigation]);
+  }, [missionId, dispatch, navigation, t]);
 
   const handleSave = async () => {
     if (!form.title.trim()) {
-      Alert.alert('Error', 'Title is required');
+      Alert.alert(t('common.error'), t('missions.title_required'));
       return;
     }
 
@@ -69,10 +72,13 @@ export const EditMissionScreen = () => {
         clientId: form.clientId ?? undefined,
         providerId: form.providerId ?? undefined,
       });
-      Alert.alert('Success', 'Mission updated.');
+      Alert.alert(t('common.success'), t('missions.updated'));
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Check your backend connection');
+      Alert.alert(
+        t('missions.save_failed'),
+        error.message || t('missions.check_backend'),
+      );
     } finally {
       setLoading(false);
     }
@@ -90,22 +96,22 @@ export const EditMissionScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.label}>Title *</Text>
+      <Text style={styles.label}>{t('missions.title_label')}</Text>
       <TextInput
         style={styles.input}
         value={form.title}
-        onChangeText={t => setForm({ ...form, title: t })}
+        onChangeText={text => setForm({ ...form, title: text })}
       />
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>{t('common.description')}</Text>
       <TextInput
         style={styles.input}
         value={form.description}
-        onChangeText={t => setForm({ ...form, description: t })}
+        onChangeText={text => setForm({ ...form, description: text })}
         multiline
       />
 
-      <Text style={styles.label}>Status</Text>
+      <Text style={styles.label}>{t('missions.status')}</Text>
       <View style={styles.row}>
         {(['PENDING', 'IN_PROGRESS', 'COMPLETED'] as const).map(s => (
           <TouchableOpacity
@@ -119,19 +125,19 @@ export const EditMissionScreen = () => {
                 form.status === s && styles.statusTextActive,
               ]}
             >
-              {s.replace('_', ' ')}
+              {translateMissionStatus(t, s)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.label}>Client (Optional)</Text>
+      <Text style={styles.label}>{t('locations.client_optional')}</Text>
       <OptionalClientPicker
         value={form.clientId}
         onChange={(clientId: number | null) => setForm({ ...form, clientId })}
       />
 
-      <Text style={styles.label}>Provider (Optional)</Text>
+      <Text style={styles.label}>{t('locations.provider_optional')}</Text>
       <OptionalProviderPicker
         value={form.providerId}
         onChange={(providerId: number | null) =>
@@ -143,7 +149,7 @@ export const EditMissionScreen = () => {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveText}>Save Changes</Text>
+          <Text style={styles.saveText}>{t('transaction.save_changes')}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

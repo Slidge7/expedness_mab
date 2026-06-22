@@ -15,7 +15,10 @@ import {
   useIsFocused,
 } from '@react-navigation/native';
 import { transactionService, TransactionDTO } from '../api/transactionService';
+import { DEFAULT_ITEM_CATEGORY } from '../../items/constants';
+import { formatMoney } from '../utils/discountUtils';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 type RouteParams = { transactionId: number };
 
@@ -34,6 +37,7 @@ const InfoRow = ({
 
 export const TransactionDetailScreen = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const isFocused = useIsFocused();
   const { transactionId } = route.params;
@@ -61,12 +65,12 @@ export const TransactionDetailScreen = () => {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Transaction',
-      'This will also reverse its effect on your balance. Continue?',
+      t('transaction.delete_transaction'),
+      t('transaction.delete_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -99,6 +103,13 @@ export const TransactionDetailScreen = () => {
     ? new Date(tx.transactionDate).toLocaleString()
     : '—';
 
+  const formatCategory = (category?: string) => {
+    if (!category || category === DEFAULT_ITEM_CATEGORY) return t('items.other');
+    return category;
+  };
+
+  const hasDiscount = (tx.discountAmount ?? 0) > 0;
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
@@ -129,7 +140,7 @@ export const TransactionDetailScreen = () => {
             )}
             {tx.category && (
               <View style={[styles.badge, styles.badgePurple]}>
-                <Text style={styles.badgeText}>{tx.category}</Text>
+                <Text style={styles.badgeText}>{formatCategory(tx.category)}</Text>
               </View>
             )}
           </View>
@@ -138,23 +149,23 @@ export const TransactionDetailScreen = () => {
 
         {/* ── Info ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Transaction Info</Text>
-          <InfoRow label="Date" value={formattedDate} />
-          <InfoRow label="Created By" value={tx.createdBy} />
+          <Text style={styles.sectionTitle}>{t('transaction.transaction_info')}</Text>
+          <InfoRow label={t('transaction.date')} value={formattedDate} />
+          <InfoRow label={t('transaction.created_by')} value={tx.createdBy} />
           <InfoRow
-            label="Mission"
+            label={t('transaction.mission')}
             value={tx.missionId ? `#${tx.missionId}` : null}
           />
           <InfoRow
-            label="Location"
+            label={t('transaction.location')}
             value={tx.locationId ? `#${tx.locationId}` : null}
           />
           <InfoRow
-            label="Client"
+            label={t('transaction.client')}
             value={tx.clientName ?? (tx.clientId ? `#${tx.clientId}` : null)}
           />
           <InfoRow
-            label="Provider"
+            label={t('transaction.provider')}
             value={tx.providerName ?? (tx.providerId ? `#${tx.providerId}` : null)}
           />
         </View>
@@ -162,16 +173,18 @@ export const TransactionDetailScreen = () => {
         {/* ── Items ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Items ({tx.items?.length || 0})
+            {t('transaction.items_total', { count: tx.items?.length || 0 })}
           </Text>
 
           {!tx.items?.length ? (
-            <Text style={styles.emptyText}>No items on this transaction.</Text>
+            <Text style={styles.emptyText}>{t('transaction.no_items')}</Text>
           ) : (
             tx.items.map((item, index) => (
               <View key={item.id ?? index} style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemCategory}>{item.category}</Text>
+                  <Text style={styles.itemCategory}>
+                    {item.itemName || formatCategory(item.category)}
+                  </Text>
                   {item.reason ? (
                     <Text style={styles.itemReason}>{item.reason}</Text>
                   ) : null}
@@ -184,16 +197,33 @@ export const TransactionDetailScreen = () => {
                     {item.quantity} × {item.unitPrice}
                   </Text>
                   <Text style={styles.itemTotal}>
-                    {item.amount?.toFixed(2) ??
-                      (item.quantity * item.unitPrice).toFixed(2)}
+                    ${formatMoney(
+                      item.amount ?? item.quantity * item.unitPrice,
+                    )}
                   </Text>
                 </View>
               </View>
             ))
           )}
 
+          {hasDiscount && (
+            <View style={styles.discountRow}>
+              <Text style={styles.discountLabel}>
+                {t('transaction.discount')}
+                {tx.discountType === 'PERCENT' && tx.discountValue
+                  ? ` (${tx.discountValue}%)`
+                  : tx.discountType === 'FIXED' && tx.discountValue
+                    ? ` ($${tx.discountValue})`
+                    : ''}
+              </Text>
+              <Text style={styles.discountValue}>
+                −${formatMoney(tx.discountAmount ?? 0)}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('transaction.total')}</Text>
             <Text
               style={[
                 styles.totalValue,
@@ -214,7 +244,7 @@ export const TransactionDetailScreen = () => {
             navigation.navigate('EditTransaction', { transactionId: tx.id })
           }
         >
-          <Text style={styles.editText}>Edit</Text>
+          <Text style={styles.editText}>{t('common.edit')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -223,7 +253,7 @@ export const TransactionDetailScreen = () => {
           disabled={deleting}
         >
           <Text style={styles.deleteText}>
-            {deleting ? 'Deleting…' : 'Delete'}
+            {deleting ? t('common.deleting') : t('common.delete')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -316,6 +346,18 @@ const styles = StyleSheet.create({
   },
   itemMath: { fontSize: 12, color: '#64748B' },
   itemTotal: { fontWeight: '800', color: '#1E293B', fontSize: 15 },
+
+  discountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  discountLabel: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  discountValue: { fontSize: 15, fontWeight: '700', color: '#EF4444' },
 
   totalRow: {
     flexDirection: 'row',

@@ -10,10 +10,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMissions } from '../../../../store/missionSlice';
 import { theme } from '../../../../theme';
+import { useTranslation } from 'react-i18next';
+import { translateMissionStatus } from '../../../../i18n/helpers';
 
 export const MissionListScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const { items, loading } = useAppSelector(state => state.missions);
 
   useEffect(() => {
@@ -45,13 +48,15 @@ export const MissionListScreen = () => {
                 },
               ]}
             >
-              <Text style={styles.badgeText}>{item.status}</Text>
+              <Text style={styles.badgeText}>
+                {translateMissionStatus(t, item.status)}
+              </Text>
             </View>
           </View>
         )}
         ListEmptyComponent={
           !loading ? (
-            <Text style={styles.empty}>No missions yet. Create your first one!</Text>
+            <Text style={styles.empty}>{t('missions.no_missions')}</Text>
           ) : null
         }
       />

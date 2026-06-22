@@ -1,13 +1,19 @@
 import apiClient from '../../../api/client';
 
+export type DiscountType = 'PERCENT' | 'FIXED';
+
 export interface TransactionItemDTO {
   id?: number;
   itemId?: number;
   itemName?: string;
   quantity: number;
   unitPrice: number;
+  subtotal?: number;
   amount?: number;
-  category: string;
+  discountType?: DiscountType | null;
+  discountValue?: number | null;
+  discountAmount?: number;
+  category?: string;
   reason?: string;
   type: 'INCOME' | 'EXPENSE';
   notes?: string;
@@ -27,6 +33,10 @@ export interface TransactionDTO {
   clientName?: string;
   providerId?: number | null;
   providerName?: string;
+  subtotal?: number;
+  discountType?: DiscountType | null;
+  discountValue?: number | null;
+  discountAmount?: number;
   totalAmount?: number;
   createdBy?: string;
   createdAt?: string;
@@ -34,13 +44,47 @@ export interface TransactionDTO {
   items: TransactionItemDTO[];
 }
 
-const normalizePayload = (data: TransactionDTO): TransactionDTO => ({
-  ...data,
-  missionId: data.missionId ?? null,
-  locationId: data.locationId ?? null,
-  clientId: data.clientId ?? null,
-  providerId: data.providerId ?? null,
-});
+const cleanDiscountFields = <
+  T extends { discountType?: DiscountType | null; discountValue?: number | null },
+>(
+  obj: T,
+): T => {
+  const cleaned = { ...obj };
+  if (!cleaned.discountType || cleaned.discountValue == null) {
+    delete cleaned.discountType;
+    delete cleaned.discountValue;
+  }
+  return cleaned;
+};
+
+const cleanLineItem = (item: TransactionItemDTO): TransactionItemDTO => {
+  const {
+    subtotal,
+    amount,
+    discountAmount,
+    itemName,
+    id,
+    ...rest
+  } = item;
+  return cleanDiscountFields(rest);
+};
+
+const normalizePayload = (data: TransactionDTO): TransactionDTO => {
+  const payload = cleanDiscountFields({
+    ...data,
+    missionId: data.missionId ?? null,
+    locationId: data.locationId ?? null,
+    clientId: data.clientId ?? null,
+    providerId: data.providerId ?? null,
+    items: data.items.map(cleanLineItem),
+  });
+
+  delete payload.subtotal;
+  delete payload.discountAmount;
+  delete payload.totalAmount;
+
+  return payload;
+};
 
 export const transactionService = {
   getAll: async () =>

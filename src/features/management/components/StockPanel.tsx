@@ -2,15 +2,17 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const StockPanel: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.heading}>Stock Management</Text>
+      <Text style={styles.heading}>{t('management.stock_management')}</Text>
       <Text style={styles.subheading}>
-        Track quantities for items with stock enabled.
+        {t('management.track_quantities')}
       </Text>
 
       <TouchableOpacity
@@ -19,9 +21,9 @@ export const StockPanel: React.FC = () => {
       >
         <Text style={styles.buttonIcon}>📦</Text>
         <View style={styles.buttonTextBlock}>
-          <Text style={styles.buttonTitle}>Stock Overview</Text>
+          <Text style={styles.buttonTitle}>{t('management.stock_overview')}</Text>
           <Text style={styles.buttonDesc}>
-            View current stock levels for all tracked items
+            {t('management.view_current_stock')}
           </Text>
         </View>
         <Text style={styles.chevron}>›</Text>

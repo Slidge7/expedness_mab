@@ -17,9 +17,11 @@ import {
   ContactDTO,
 } from '../api/clientService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const ClientDetailScreen = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const clientId = route.params?.clientId as number;
   const isFocused = useIsFocused();
@@ -46,7 +48,7 @@ export const ClientDetailScreen = () => {
       setClient(clientData);
       setContacts(contactData);
     } catch (e) {
-      Alert.alert('Error', 'Failed to load client details.');
+      Alert.alert(t('common.error'), 'Failed to load client details.');
     } finally {
       setLoading(false);
     }
@@ -76,7 +78,7 @@ export const ClientDetailScreen = () => {
 
   const saveContact = async () => {
     if (!contactForm.name.trim()) {
-      Alert.alert('Error', 'Contact name is required');
+      Alert.alert(t('common.error'), 'Contact name is required');
       return;
     }
     try {
@@ -88,22 +90,22 @@ export const ClientDetailScreen = () => {
       setModalOpen(false);
       await loadData();
     } catch (e) {
-      Alert.alert('Error', 'Failed to save contact.');
+      Alert.alert(t('common.error'), 'Failed to save contact.');
     }
   };
 
   const handleDeleteClient = () => {
-    Alert.alert('Delete Client', `Remove ${client?.name}? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('common.delete'), `Remove ${client?.name}? This cannot be undone.`, [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await clientService.delete(clientId);
             navigation.goBack();
           } catch {
-            Alert.alert('Error', 'Failed to delete client.');
+            Alert.alert(t('common.error'), 'Failed to delete client.');
           }
         },
       },
@@ -111,17 +113,17 @@ export const ClientDetailScreen = () => {
   };
 
   const deleteContact = (contact: ContactDTO) => {
-    Alert.alert('Delete Contact', `Remove ${contact.name}?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('common.delete'), `Remove ${contact.name}?`, [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await clientService.deleteContact(clientId, contact.id!);
             await loadData();
           } catch (e) {
-            Alert.alert('Error', 'Failed to delete contact.');
+            Alert.alert(t('common.error'), 'Failed to delete contact.');
           }
         },
       },
@@ -155,22 +157,22 @@ export const ClientDetailScreen = () => {
         style={styles.editBtn}
         onPress={() => navigation.navigate('EditClient', { clientId })}
       >
-        <Text style={styles.editText}>Edit Client</Text>
+        <Text style={styles.editText}>{t('common.edit')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteClient}>
-        <Text style={styles.deleteText}>Delete Client</Text>
+        <Text style={styles.deleteText}>{t('common.delete')}</Text>
       </TouchableOpacity>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Contacts ({contacts.length})</Text>
+        <Text style={styles.sectionTitle}>{t('management.contacts')} ({contacts.length})</Text>
         <TouchableOpacity onPress={openAddContact}>
-          <Text style={styles.addLink}>+ Add</Text>
+          <Text style={styles.addLink}>+ {t('management.add_contact')}</Text>
         </TouchableOpacity>
       </View>
 
       {contacts.length === 0 ? (
-        <Text style={styles.empty}>No contacts yet.</Text>
+        <Text style={styles.empty}>{t('management.no_contacts')}</Text>
       ) : (
         contacts.map(contact => (
           <TouchableOpacity
@@ -191,29 +193,29 @@ export const ClientDetailScreen = () => {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              {editingContact ? 'Edit Contact' : 'New Contact'}
+              {editingContact ? t('management.edit_contact') : t('management.new_contact')}
             </Text>
             {(['name', 'email', 'phone', 'role', 'notes'] as const).map(field => (
               <View key={field}>
-                <Text style={styles.label}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
+                <Text style={styles.label}>{t(`common.${field}`)}</Text>
                 <TextInput
                   style={styles.input}
                   value={contactForm[field]}
-                  onChangeText={t =>
-                    setContactForm(prev => ({ ...prev, [field]: t }))
+                  onChangeText={text =>
+                    setContactForm(prev => ({ ...prev, [field]: text }))
                   }
-                  placeholder={field === 'name' ? 'Required' : 'Optional'}
+                  placeholder={field === 'name' ? t('management.required') : t('management.optional')}
                 />
               </View>
             ))}
             <TouchableOpacity style={styles.saveButton} onPress={saveContact}>
-              <Text style={styles.saveText}>Save</Text>
+              <Text style={styles.saveText}>{t('common.save')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setModalOpen(false)}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

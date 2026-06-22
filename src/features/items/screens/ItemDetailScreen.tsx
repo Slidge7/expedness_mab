@@ -18,11 +18,15 @@ import {
 } from '../../../store/itemSlice';
 import { enableStock, disableStock } from '../../../store/stockSlice';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
+import { translateTransactionType } from '../../../i18n/helpers';
+import { DEFAULT_ITEM_CATEGORY } from '../constants';
 
 export const ItemDetailScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const { selectedItem, loading } = useAppSelector(state => state.items);
   const stockLoading = useAppSelector(state => state.stock.loading);
@@ -56,7 +60,7 @@ export const ItemDetailScreen = () => {
       await dispatch(fetchItemById(itemId));
       navigation.navigate('ItemStockDetail', { itemId });
     } catch {
-      Alert.alert('Error', 'Failed to enable stock tracking.');
+      Alert.alert(t('common.error'), t('items.enable_stock_failed'));
     } finally {
       setEnabling(false);
     }
@@ -71,12 +75,12 @@ export const ItemDetailScreen = () => {
   const handleDisableStock = () => {
     if (!itemId) return;
     Alert.alert(
-      'Disable Stock Tracking',
-      'Stock will be reset to zero for this item.',
+      t('items.disable_stock'),
+      t('items.disable_stock_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Disable',
+          text: t('items.disable'),
           style: 'destructive',
           onPress: async () => {
             setDisabling(true);
@@ -84,7 +88,7 @@ export const ItemDetailScreen = () => {
               await dispatch(disableStock(itemId)).unwrap();
               await dispatch(fetchItemById(itemId));
             } catch {
-              Alert.alert('Error', 'Failed to disable stock tracking.');
+              Alert.alert(t('common.error'), t('items.disable_stock_failed'));
             } finally {
               setDisabling(false);
             }
@@ -96,21 +100,21 @@ export const ItemDetailScreen = () => {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Item',
-      `Are you sure you want to delete "${selectedItem?.name}"? This action cannot be undone.`,
+      t('items.delete_item'),
+      t('items.delete_item_confirm', { name: selectedItem?.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
             try {
               await dispatch(deleteItem(selectedItem!.id!)).unwrap();
-              Alert.alert('Success', 'Item deleted successfully');
+              Alert.alert(t('common.success'), t('items.item_deleted'));
               navigation.goBack();
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete item');
+              Alert.alert(t('common.error'), t('items.delete_failed'));
             } finally {
               setDeleting(false);
             }
@@ -129,7 +133,7 @@ export const ItemDetailScreen = () => {
   }
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return t('items.not_available');
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -139,6 +143,14 @@ export const ItemDetailScreen = () => {
       minute: '2-digit',
     });
   };
+
+  const formatCategory = (category?: string) => {
+    if (!category) return t('items.uncategorized');
+    if (category === DEFAULT_ITEM_CATEGORY) return t('items.other');
+    return category;
+  };
+
+  const typeLabel = translateTransactionType(t, selectedItem.type);
 
   return (
     <View style={styles.container}>
@@ -172,14 +184,14 @@ export const ItemDetailScreen = () => {
             ]}
           >
             <Text style={styles.typeBadgeText}>
-              {selectedItem.type === 'INCOME' ? '↑ INCOME' : '↓ EXPENSE'}
+              {selectedItem.type === 'INCOME' ? `↑ ${typeLabel}` : `↓ ${typeLabel}`}
             </Text>
           </View>
 
           {/* Status Badge */}
           {!selectedItem.active && (
             <View style={styles.inactiveBadge}>
-              <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
+              <Text style={styles.inactiveBadgeText}>{t('items.inactive').toUpperCase()}</Text>
             </View>
           )}
         </View>
@@ -191,24 +203,24 @@ export const ItemDetailScreen = () => {
             ${selectedItem.unitPrice?.toFixed(2)}
           </Text>
           {selectedItem.unit && (
-            <Text style={styles.itemUnit}>per {selectedItem.unit}</Text>
+            <Text style={styles.itemUnit}>{t('items.per_unit', { unit: selectedItem.unit })}</Text>
           )}
         </View>
 
         {/* Details Section */}
         <View style={styles.detailsSection}>
-          <Text style={styles.sectionTitle}>Details</Text>
+          <Text style={styles.sectionTitle}>{t('items.details')}</Text>
 
           <DetailRow
             icon="📂"
-            label="Category"
-            value={selectedItem.category || 'Uncategorized'}
+            label={t('transaction.category')}
+            value={formatCategory(selectedItem.category)}
           />
 
           {selectedItem.description && (
             <DetailRow
               icon="📝"
-              label="Description"
+              label={t('common.description')}
               value={selectedItem.description}
               multiline
             />
@@ -216,14 +228,14 @@ export const ItemDetailScreen = () => {
 
           <DetailRow
             icon="📦"
-            label="Unit"
-            value={selectedItem.unit || 'N/A'}
+            label={t('items.unit')}
+            value={selectedItem.unit || t('items.not_available')}
           />
 
           <DetailRow
             icon="⚡"
-            label="Status"
-            value={selectedItem.active ? 'Active' : 'Inactive'}
+            label={t('items.status')}
+            value={selectedItem.active ? t('items.active') : t('items.inactive')}
             valueStyle={{
               color: selectedItem.active ? '#10B981' : '#F59E0B',
               fontWeight: '700',
@@ -233,7 +245,7 @@ export const ItemDetailScreen = () => {
           {selectedItem.providerNames && selectedItem.providerNames.length > 0 && (
             <DetailRow
               icon="🏢"
-              label="Providers"
+              label={t('items.providers')}
               value={selectedItem.providerNames.join(', ')}
             />
           )}
@@ -241,37 +253,37 @@ export const ItemDetailScreen = () => {
 
         {/* Metadata Section */}
         <View style={styles.metadataSection}>
-          <Text style={styles.sectionTitle}>Information</Text>
+          <Text style={styles.sectionTitle}>{t('items.information')}</Text>
 
           <DetailRow
             icon="👤"
-            label="Created By"
-            value={selectedItem.createdBy || 'N/A'}
+            label={t('items.created_by')}
+            value={selectedItem.createdBy || t('items.not_available')}
           />
 
           <DetailRow
             icon="📅"
-            label="Created At"
+            label={t('items.created_at')}
             value={formatDate(selectedItem.createdAt)}
           />
         </View>
 
         {/* Stock Section */}
         <View style={styles.stockSection}>
-          <Text style={styles.sectionTitle}>Stock</Text>
+          <Text style={styles.sectionTitle}>{t('nav.stock')}</Text>
 
           {selectedItem.stockEnabled ? (
             <>
               <View style={styles.stockBadge}>
                 <Text style={styles.stockBadgeText}>
-                  {selectedItem.currentStock ?? 0} in stock
+                  {t('items.in_stock', { count: selectedItem.currentStock ?? 0 })}
                   {selectedItem.unit ? ` ${selectedItem.unit}` : ''}
                 </Text>
               </View>
 
               {selectedItem.minStock != null && (
                 <Text style={styles.minStockHint}>
-                  Minimum: {selectedItem.minStock}
+                  {t('items.minimum', { min: selectedItem.minStock })}
                 </Text>
               )}
 
@@ -280,7 +292,7 @@ export const ItemDetailScreen = () => {
                   style={styles.viewStockBtn}
                   onPress={handleViewStock}
                 >
-                  <Text style={styles.viewStockBtnText}>Manage Stock</Text>
+                  <Text style={styles.viewStockBtnText}>{t('items.manage_stock')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -291,7 +303,7 @@ export const ItemDetailScreen = () => {
                   {disabling ? (
                     <ActivityIndicator size="small" color="#EF4444" />
                   ) : (
-                    <Text style={styles.disableStockBtnText}>Disable</Text>
+                    <Text style={styles.disableStockBtnText}>{t('items.disable')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -305,7 +317,7 @@ export const ItemDetailScreen = () => {
               {enabling ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Text style={styles.enableStockBtnText}>Enable Stock Tracking</Text>
+                <Text style={styles.enableStockBtnText}>{t('items.enable_stock')}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -325,7 +337,7 @@ export const ItemDetailScreen = () => {
           {deleting ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
-            <Text style={styles.deleteBtnText}>🗑️ Delete</Text>
+            <Text style={styles.deleteBtnText}>{t('items.delete_btn')}</Text>
           )}
         </TouchableOpacity>
 
@@ -334,7 +346,7 @@ export const ItemDetailScreen = () => {
           onPress={handleEdit}
           disabled={deleting}
         >
-          <Text style={styles.editBtnText}>✏️ Edit Item</Text>
+          <Text style={styles.editBtnText}>{t('items.edit_btn')}</Text>
         </TouchableOpacity>
       </View>
     </View>

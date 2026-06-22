@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { locationService, LocationDTO } from '../../locations/api/locationService';
 import { theme } from '../../../theme';
 import { managementStyles as s } from '../styles/managementStyles';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   isActive: boolean;
@@ -19,6 +20,7 @@ interface Props {
 
 export const LocationsPanel: React.FC<Props> = ({ isActive }) => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const [items, setItems] = useState<LocationDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +29,7 @@ export const LocationsPanel: React.FC<Props> = ({ isActive }) => {
     try {
       setItems(await locationService.getAll());
     } catch {
-      Alert.alert('Error', 'Failed to load locations.');
+      Alert.alert(t('common.error'), 'Failed to load locations.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,7 +79,7 @@ export const LocationsPanel: React.FC<Props> = ({ isActive }) => {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text style={s.emptyText}>No locations yet. Add your first one.</Text>
+          <Text style={s.emptyText}>{t('management.no_locations')}</Text>
         }
       />
       <TouchableOpacity

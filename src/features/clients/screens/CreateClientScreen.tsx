@@ -3,18 +3,20 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { clientService } from '../api/clientService';
 import { theme } from '../../../theme';
+import { Card } from '../../../components/Card';
+import { Button } from '../../../components/Button';
+import { useTranslation } from 'react-i18next';
 
 export const CreateClientScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -26,106 +28,118 @@ export const CreateClientScreen = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert('Error', 'Name is required');
+      Alert.alert(t('common.error'), 'Name is required');
       return;
     }
 
     setLoading(true);
     try {
       await clientService.create(form);
-      Alert.alert('Success', 'Client created successfully!');
+      Alert.alert(t('common.success'), 'Client created successfully!');
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Check your backend connection');
+      Alert.alert(t('common.error'), error.message || 'Check your backend connection');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.label}>Name *</Text>
-      <TextInput
-        style={styles.input}
-        value={form.name}
-        onChangeText={t => setForm({ ...form, name: t })}
-        placeholder="Client name"
-      />
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Card>
+        <Text style={styles.label}>{t('common.name')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.name}
+          onChangeText={text => setForm({ ...form, name: text })}
+          placeholder="Client name"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
 
-      <Text style={styles.label}>Company</Text>
-      <TextInput
-        style={styles.input}
-        value={form.company}
-        onChangeText={t => setForm({ ...form, company: t })}
-        placeholder="Legal or display name"
-      />
+        <Text style={styles.label}>{t('common.company')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.company}
+          onChangeText={text => setForm({ ...form, company: text })}
+          placeholder="Legal or display name"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
 
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        style={styles.input}
-        value={form.description}
-        onChangeText={t => setForm({ ...form, description: t })}
-        placeholder="Optional notes"
-        multiline
-      />
+        <Text style={styles.label}>{t('common.description')}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={form.description}
+          onChangeText={text => setForm({ ...form, description: text })}
+          placeholder="Optional notes"
+          placeholderTextColor={theme.colors.textSecondary}
+          multiline
+        />
 
-      <Text style={styles.label}>City</Text>
-      <TextInput
-        style={styles.input}
-        value={form.city}
-        onChangeText={t => setForm({ ...form, city: t })}
-        placeholder="City"
-      />
+        <Text style={styles.label}>{t('common.city')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.city}
+          onChangeText={text => setForm({ ...form, city: text })}
+          placeholder="City"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
 
-      <Text style={styles.label}>Address</Text>
-      <TextInput
-        style={styles.input}
-        value={form.address}
-        onChangeText={t => setForm({ ...form, address: t })}
-        placeholder="Street address"
-        multiline
-      />
+        <Text style={styles.label}>{t('common.address')}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={form.address}
+          onChangeText={text => setForm({ ...form, address: text })}
+          placeholder="Street address"
+          placeholderTextColor={theme.colors.textSecondary}
+          multiline
+        />
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.saveText}>Save Client</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
+        <View style={styles.actions}>
+          <Button 
+            title={t('common.save')} 
+            onPress={handleSave} 
+            loading={loading} 
+            style={styles.saveBtn}
+          />
+          <Button 
+            title={t('common.cancel')} 
+            variant="outline" 
+            onPress={() => navigation.goBack()} 
+          />
+        </View>
+      </Card>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  content: { padding: theme.spacing.l, maxWidth: 600, alignSelf: 'center', width: '100%' },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#475569',
+    color: theme.colors.text,
     marginBottom: 8,
     marginTop: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#F8FAFC',
-  },
-  saveButton: {
-    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.m,
     padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 32,
+    fontSize: 16,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.background,
   },
-  saveText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  cancelButton: { padding: 16, alignItems: 'center' },
-  cancelText: { color: '#64748B', fontWeight: '600' },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  actions: {
+    marginTop: 32,
+    gap: 16,
+  },
+  saveBtn: {
+    marginBottom: 0,
+  },
 });

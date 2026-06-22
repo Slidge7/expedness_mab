@@ -13,6 +13,7 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchStockItems } from '../../../store/stockSlice';
 import { ItemDTO } from '../../items/api/itemService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 function isLowStock(item: ItemDTO): boolean {
   if (item.minStock == null || item.currentStock == null) return false;
@@ -22,6 +23,7 @@ function isLowStock(item: ItemDTO): boolean {
 export const StockListScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const { stockItems, loading } = useAppSelector(state => state.stock);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -57,13 +59,13 @@ export const StockListScreen = () => {
           </Text>
           {low && (
             <View style={styles.lowBadge}>
-              <Text style={styles.lowBadgeText}>Low</Text>
+              <Text style={styles.lowBadgeText}>{t('stock.low')}</Text>
             </View>
           )}
         </View>
 
         <Text style={styles.category} numberOfLines={1}>
-          {item.category || 'Uncategorized'}
+          {item.category || t('items.uncategorized')}
           {item.unit ? ` · ${item.unit}` : ''}
         </Text>
 
@@ -72,7 +74,9 @@ export const StockListScreen = () => {
             {item.currentStock ?? 0}
           </Text>
           {item.minStock != null && (
-            <Text style={styles.minStock}>min {item.minStock}</Text>
+            <Text style={styles.minStock}>
+              {t('stock.min_value', { value: item.minStock })}
+            </Text>
           )}
         </View>
       </TouchableOpacity>
@@ -104,10 +108,8 @@ export const StockListScreen = () => {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>No stock tracked yet</Text>
-            <Text style={styles.emptyText}>
-              Enable stock tracking on an item from its detail page.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('stock.no_stock')}</Text>
+            <Text style={styles.emptyText}>{t('stock.enable_hint')}</Text>
           </View>
         }
       />

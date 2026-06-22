@@ -12,9 +12,11 @@ import {
 import { providerService, ProviderDTO } from '../api/providerService';
 import { theme } from '../../../theme';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 export const ProviderListScreen = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const [providers, setProviders] = useState<ProviderDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,7 +88,7 @@ export const ProviderListScreen = () => {
         }
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            No providers yet. Add your first one!
+            {t('management.no_providers')}
           </Text>
         }
       />

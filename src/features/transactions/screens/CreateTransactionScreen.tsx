@@ -7,39 +7,57 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  FlatList,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import {
   transactionService,
   TransactionItemDTO,
+  DiscountType,
 } from '../api/transactionService';
+import { SelectedCartItemRow } from '../components/SelectedCartItemRow';
+import { DiscountField } from '../components/DiscountField';
+import { calcTransactionTotals } from '../utils/discountUtils';
+import {
+  buildTransactionItems,
+  getItemDisplayName,
+  parseTransactionDiscount,
+  validateTransactionDiscount,
+} from '../utils/transactionFormHelpers';
 import { fetchMissions } from '../../../store/missionSlice';
 import { fetchLocations } from '../../../store/locationSlice';
 import { fetchItems } from '../../../store/itemSlice';
 import { fetchClients } from '../../../store/clientSlice';
 import { fetchProviders } from '../../../store/providerSlice';
 import { theme } from '../../../theme';
-import { AddItemModal } from '../components/AddItemModal';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { OptionalEntityPicker } from '../components/OptionalEntityPicker';
 import {
   TransactionPartyPicker,
   PartyMode,
 } from '../components/TransactionPartyPicker';
+import { Card } from '../../../components/Card';
+import { Button } from '../../../components/Button';
+import { ItemDTO } from '../../items/api/itemService';
+import { useTranslation } from 'react-i18next';
 
 export const CreateTransactionScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
+  const route = useRoute<RouteProp<{ params?: { initialType?: 'INCOME' | 'EXPENSE' } }>>();
   const dispatch = useAppDispatch();
 
   const missions = useAppSelector(state => state.missions.items);
   const locations = useAppSelector(state => state.locations.items);
   const clients = useAppSelector(state => state.clients.items);
   const providers = useAppSelector(state => state.providers.items);
+  const inventoryItems = useAppSelector(state => state.items.items);
   const user = useAppSelector(state => state.auth.user);
 
+  const type = route.params?.initialType ?? 'EXPENSE';
+
   const [description, setDescription] = useState('');
-  const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [fuelTank, setFuelTank] = useState<'ft1' | 'ft2' | 'ft3'>('ft1');
   const [category, setCategory] = useState<string>('');
   const [missionId, setMissionId] = useState<number | null>(null);
@@ -47,11 +65,12 @@ export const CreateTransactionScreen = () => {
   const [partyMode, setPartyMode] = useState<PartyMode>('none');
   const [clientId, setClientId] = useState<number | null>(null);
   const [providerId, setProviderId] = useState<number | null>(null);
-  const [snapBalance, setSnapBalance] = useState<
-    'AFTER' | 'BEFORE' | undefined
-  >(undefined);
-  const [cartItems, setCartItems] = useState<TransactionItemDTO[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [snapBalance, setSnapBalance] = useState<'AFTER' | 'BEFORE' | undefined>(undefined);
+  
+  const [cart, setCart] = useState<Record<string, TransactionItemDTO>>({});
+  const [transactionDiscountType, setTransactionDiscountType] = useState<DiscountType | null>(null);
+  const [transactionDiscountValue, setTransactionDiscountValue] = useState('');
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -62,26 +81,81 @@ export const CreateTransactionScreen = () => {
     dispatch(fetchProviders());
   }, [dispatch]);
 
-  const handleAddItems = (items: TransactionItemDTO[]) => {
-    setCartItems(prev => [...prev, ...items]);
+  const handleIncrement = (item: ItemDTO) => {
+    setCart(prev => {
+      const existing = prev[item.id!];
+      if (existing) {
+        return {
+          ...prev,
+          [item.id!]: { ...existing, quantity: existing.quantity + 1 },
+        };
+      }
+      return {
+        ...prev,
+        [item.id!]: {
+          itemId: item.id,
+          category: item.category,
+          quantity: 1,
+          unitPrice: item.unitPrice || 0,
+          reason: item.description || '',
+          type: type,
+        },
+      };
+    });
   };
 
-  const handleRemoveItem = (index: number) => {
-    setCartItems(prev => prev.filter((_, i) => i !== index));
+  const handleDecrement = (itemId: number) => {
+    setCart(prev => {
+      const existing = prev[itemId];
+      if (!existing) return prev;
+      if (existing.quantity <= 1) {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      }
+      return {
+        ...prev,
+        [itemId]: { ...existing, quantity: existing.quantity - 1 },
+      };
+    });
   };
 
-  const estimatedTotal = cartItems.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0,
+  const handleRemove = (key: string) => {
+    setCart(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const cartItemsArray = Object.values(cart);
+  const totalQuantity = cartItemsArray.reduce((sum, i) => sum + i.quantity, 0);
+  const previewItems = buildTransactionItems(cart, type);
+  const txDiscount = parseTransactionDiscount(
+    transactionDiscountType,
+    transactionDiscountValue,
   );
+  const totals = calcTransactionTotals(previewItems, txDiscount);
+
+  const filteredInventory = inventoryItems
+    .filter(i => i.active && i.name.toLowerCase().includes(itemSearchQuery.toLowerCase()))
+    .slice(0, 10); // Limit to 10 for performance
 
   const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Please provide a description.');
       return;
     }
-    if (cartItems.length === 0) {
+    if (cartItemsArray.length === 0) {
       Alert.alert('Error', 'Please add at least one item.');
+      return;
+    }
+    const discountError = validateTransactionDiscount(
+      transactionDiscountType,
+      transactionDiscountValue,
+    );
+    if (discountError) {
+      Alert.alert('Error', t(`transaction.${discountError}`));
       return;
     }
     try {
@@ -90,7 +164,7 @@ export const CreateTransactionScreen = () => {
         description,
         type,
         fuelTank,
-        category: category || undefined,
+        category: category.trim() || undefined,
         missionId: missionId ?? null,
         locationId: locationId ?? null,
         clientId: partyMode === 'client' ? clientId : null,
@@ -98,7 +172,8 @@ export const CreateTransactionScreen = () => {
         userId: user?.id,
         snapBalance,
         transactionDate: new Date().toISOString(),
-        items: cartItems,
+        ...parseTransactionDiscount(transactionDiscountType, transactionDiscountValue),
+        items: previewItems,
       });
       Alert.alert('Success', 'Transaction created.');
       navigation.goBack();
@@ -112,316 +187,309 @@ export const CreateTransactionScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* ── Details ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Details</Text>
-
-          <Text style={styles.label}>Type</Text>
-          <View style={styles.row}>
-            {(['EXPENSE', 'INCOME'] as const).map(t => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setType(t)}
-                style={[styles.typeBtn, type === t && styles.typeBtnActive]}
-              >
-                <Text
-                  style={{
-                    color: type === t ? '#fff' : '#64748B',
-                    fontWeight: '700',
-                  }}
-                >
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>Payment Mode (Fuel Tank)</Text>
-          <View style={styles.row}>
-            {(['ft1', 'ft2', 'ft3'] as const).map(ft => (
-              <TouchableOpacity
-                key={ft}
-                onPress={() => setFuelTank(ft)}
-                style={[styles.ftBtn, fuelTank === ft && styles.ftBtnActive]}
-              >
-                <Text
-                  style={{
-                    color: fuelTank === ft ? '#fff' : '#64748B',
-                    fontWeight: '600',
-                  }}
-                >
-                  {ft.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>Category</Text>
-          <CategoryPicker value={category} onChange={setCategory} />
-
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={styles.input}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="General description"
-            placeholderTextColor="#94A3B8"
-          />
-
-          <Text style={styles.label}>Mission (Optional)</Text>
-          <OptionalEntityPicker
-            title="Mission"
-            value={missionId}
-            onChange={setMissionId}
-            items={missions
-              .filter(m => m.id != null)
-              .map(m => ({ id: m.id!, label: m.title }))}
-          />
-
-          <Text style={styles.label}>Location (Optional)</Text>
-          <OptionalEntityPicker
-            title="Location"
-            value={locationId}
-            onChange={setLocationId}
-            items={locations
-              .filter(l => l.id != null)
-              .map(l => ({ id: l.id!, label: l.name }))}
-          />
-
-          <Text style={styles.label}>Client or Provider (Optional)</Text>
-          <TransactionPartyPicker
-            mode={partyMode}
-            clientId={clientId}
-            providerId={providerId}
-            clients={clients
-              .filter(c => c.id != null)
-              .map(c => ({ id: c.id!, label: c.name }))}
-            providers={providers
-              .filter(p => p.id != null)
-              .map(p => ({ id: p.id!, label: p.name }))}
-            onChange={(mode, nextClientId, nextProviderId) => {
-              setPartyMode(mode);
-              setClientId(nextClientId);
-              setProviderId(nextProviderId);
-            }}
-          />
-        </View>
-
-        {/* ── Items ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Items ({cartItems.length})</Text>
-            <TouchableOpacity onPress={() => setIsModalOpen(true)}>
-              <Text style={styles.addLink}>+ Add Items</Text>
-            </TouchableOpacity>
-          </View>
-
-          {cartItems.length === 0 ? (
-            <Text style={styles.emptyText}>No items added yet.</Text>
-          ) : (
-            cartItems.map((item, index) => (
-              <View key={index} style={styles.itemRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemCategory}>{item.category}</Text>
-                  <Text style={styles.itemReason}>
-                    {item.reason || 'No reason'}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.itemMath}>
-                    {item.quantity} × {item.unitPrice}
-                  </Text>
-                  <Text style={styles.itemTotal}>
-                    {(item.quantity * item.unitPrice).toFixed(2)}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleRemoveItem(index)}
-                  style={{ marginLeft: 10 }}
-                >
-                  <Text style={{ color: '#EF4444', fontSize: 20 }}>×</Text>
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Estimated Total</Text>
-            <Text style={styles.totalValue}>{estimatedTotal.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        {/* ── Snapshot ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Balance Snapshot</Text>
-          <Text style={styles.snapHint}>
-            Optionally capture a balance snapshot relative to this transaction.
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        {/* SECTION 0: Summary */}
+        <View style={[
+          styles.summaryHeader, 
+          { backgroundColor: type === 'INCOME' ? theme.colors.successLight : theme.colors.dangerLight }
+        ]}>
+          <Text style={[
+            styles.summaryLabel,
+            { color: type === 'INCOME' ? theme.colors.success : theme.colors.danger }
+          ]}>
+            {type === 'INCOME' ? t('transaction.new_income') : t('transaction.new_expense')}
           </Text>
-          <View style={styles.row}>
-            {([undefined, 'BEFORE', 'AFTER'] as const).map(opt => (
-              <TouchableOpacity
-                key={String(opt)}
-                onPress={() => setSnapBalance(opt)}
-                style={[
-                  styles.snapBtn,
-                  snapBalance === opt && styles.snapBtnActive,
-                ]}
-              >
-                <Text
-                  style={{
-                    color: snapBalance === opt ? '#fff' : '#64748B',
-                    fontSize: 12,
-                    fontWeight: '600',
-                  }}
-                >
-                  {opt === undefined ? 'None' : opt}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={[
+            styles.summaryTotal,
+            { color: type === 'INCOME' ? theme.colors.success : theme.colors.danger }
+          ]}>
+            ${totals.totalAmount.toFixed(2)}
+          </Text>
+          <View style={styles.summaryBadge}>
+            <Text style={styles.summaryCount}>{t('transaction.items_total', { count: totalQuantity })}</Text>
           </View>
         </View>
+
+        {/* SECTION 1: Selected Items */}
+        {cartItemsArray.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>{t('transaction.selected_items')}</Text>
+            <View style={styles.selectedItemsList}>
+              {Object.entries(cart).map(([key, item]) => (
+                <SelectedCartItemRow
+                  key={key}
+                  item={item}
+                  displayName={getItemDisplayName(item, inventoryItems)}
+                  onDecrement={() => handleDecrement(Number(key))}
+                  onIncrement={() => handleIncrement({ id: item.itemId } as ItemDTO)}
+                  onRemove={() => handleRemove(key)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* SECTION 2: Item List with Search */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>{t('transaction.add_items')}</Text>
+          <View style={styles.searchWrapper}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('transaction.search_inventory')}
+              placeholderTextColor={theme.colors.textSecondary}
+              value={itemSearchQuery}
+              onChangeText={setItemSearchQuery}
+            />
+          </View>
+          <View style={styles.inventoryGrid}>
+            {filteredInventory.map(item => {
+              const qty = cart[item.id!]?.quantity || 0;
+              return (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={[styles.inventoryCard, qty > 0 && styles.inventoryCardActive]}
+                  onPress={() => handleIncrement(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.inventoryCardHeader}>
+                    <Text style={styles.inventoryItemName} numberOfLines={2}>{item.name}</Text>
+                    {qty > 0 ? (
+                      <View style={styles.inventoryItemBadge}>
+                        <Text style={styles.inventoryItemBadgeText}>{qty}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.inventoryItemPrice}>${item.unitPrice?.toFixed(2) || '0.00'}</Text>
+                  {qty === 0 && (
+                    <View style={styles.addButtonWrapper}>
+                      <Text style={styles.addButtonText}>+ ADD</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )
+            })}
+            {filteredInventory.length === 0 && (
+              <View style={styles.emptyStateWrapper}>
+                <Text style={styles.emptyText}>{t('transaction.no_matching_items')}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* SECTION 3: Details */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>{t('transaction.transaction_details')}</Text>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.description')}</Text>
+            <TextInput
+              style={styles.input}
+              value={description}
+              onChangeText={setDescription}
+              placeholder={t('transaction.general_description')}
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.payment_mode')}</Text>
+            <View style={styles.chipRow}>
+              {(['ft1', 'ft2', 'ft3'] as const).map(ft => (
+                <TouchableOpacity
+                  key={ft}
+                  onPress={() => setFuelTank(ft)}
+                  style={[styles.chip, fuelTank === ft && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, fuelTank === ft && styles.chipTextActive]}>
+                    {ft.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.discount')}</Text>
+            <DiscountField
+              discountType={transactionDiscountType}
+              discountValue={transactionDiscountValue}
+              onChange={(discountType, value) => {
+                setTransactionDiscountType(discountType);
+                setTransactionDiscountValue(value);
+              }}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.category_optional')}</Text>
+            <CategoryPicker value={category} onChange={setCategory} />
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.formGroupHalf}>
+              <Text style={styles.label}>{t('transaction.mission_optional')}</Text>
+              <OptionalEntityPicker
+                title="Mission"
+                value={missionId}
+                onChange={setMissionId}
+                items={missions.filter(m => m.id != null).map(m => ({ id: m.id!, label: m.title }))}
+              />
+            </View>
+            <View style={styles.formGroupHalf}>
+              <Text style={styles.label}>{t('transaction.location_optional')}</Text>
+              <OptionalEntityPicker
+                title="Location"
+                value={locationId}
+                onChange={setLocationId}
+                items={locations.filter(l => l.id != null).map(l => ({ id: l.id!, label: l.name }))}
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.client_provider_optional')}</Text>
+            <TransactionPartyPicker
+              mode={partyMode}
+              clientId={clientId}
+              providerId={providerId}
+              clients={clients.filter(c => c.id != null).map(c => ({ id: c.id!, label: c.name }))}
+              providers={providers.filter(p => p.id != null).map(p => ({ id: p.id!, label: p.name }))}
+              onChange={(mode, nextClientId, nextProviderId) => {
+                setPartyMode(mode);
+                setClientId(nextClientId);
+                setProviderId(nextProviderId);
+              }}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.balance_snapshot')}</Text>
+            <View style={styles.chipRow}>
+              {([undefined, 'BEFORE', 'AFTER'] as const).map(opt => (
+                <TouchableOpacity
+                  key={String(opt)}
+                  onPress={() => setSnapBalance(opt)}
+                  style={[styles.chip, snapBalance === opt && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, snapBalance === opt && styles.chipTextActive]}>
+                    {opt === undefined ? t('transaction.none') : opt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+        </View>
+
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.submitBtn, loading && { opacity: 0.6 }]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Text style={styles.submitText}>
-            {loading ? 'Saving…' : 'Submit Transaction'}
-          </Text>
-        </TouchableOpacity>
+        <Button 
+          title={t('transaction.submit_transaction')} 
+          onPress={handleSubmit} 
+          loading={loading}
+          style={styles.submitBtn}
+        />
       </View>
-
-      <AddItemModal
-        visible={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onAddMultiple={handleAddItems}
-        transactionType={type}
-      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  section: {
-    backgroundColor: '#FFF',
-    padding: 20,
-    marginBottom: 10,
-    elevation: 1,
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContent: { padding: theme.spacing.m, paddingBottom: 140, maxWidth: 800, alignSelf: 'center', width: '100%', gap: theme.spacing.xl },
+  
+  // Section 0
+  summaryHeader: { 
+    alignItems: 'center', 
+    paddingVertical: theme.spacing.xl, 
+    borderRadius: theme.radius.xl,
+    marginVertical: theme.spacing.s,
+    ...theme.shadows.md,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+  summaryLabel: { fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: theme.spacing.s },
+  summaryTotal: { fontSize: 56, fontWeight: '900', marginVertical: theme.spacing.xs, letterSpacing: -1 },
+  summaryBadge: { backgroundColor: 'rgba(255,255,255,0.4)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: theme.radius.round, marginTop: theme.spacing.s },
+  summaryCount: { fontSize: 14, color: theme.colors.text, fontWeight: '700' },
+
+  // Shared Section Styles
+  sectionContainer: { gap: theme.spacing.m },
+  sectionTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.text, marginLeft: theme.spacing.xs },
+  
+  // Section 1: Selected Items
+  emptyText: { textAlign: 'center', color: theme.colors.textSecondary, fontWeight: '500', paddingVertical: theme.spacing.l, fontSize: 16 },
+  selectedItemsList: { gap: theme.spacing.s },
+  selectedItemCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: theme.spacing.m, 
+    backgroundColor: theme.colors.surface, 
+    borderRadius: theme.radius.l, 
+    ...theme.shadows.sm 
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1E293B',
-    marginBottom: 15,
+  selectedItemInfo: { flex: 1 },
+  selectedItemName: { fontWeight: '700', fontSize: 16, color: theme.colors.text },
+  selectedItemPrice: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
+  
+  quantityControlsWrapper: { alignItems: 'flex-end', justifyContent: 'center', marginRight: theme.spacing.m },
+  quantityControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.inputBg, borderRadius: theme.radius.round, paddingHorizontal: 4, paddingVertical: 4 },
+  qtyBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface, borderRadius: theme.radius.round, ...theme.shadows.sm },
+  qtyBtnText: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
+  qtyText: { fontSize: 16, fontWeight: '800', color: theme.colors.text, minWidth: 32, textAlign: 'center' },
+  itemRowTotal: { fontWeight: '800', fontSize: 16, color: theme.colors.primary, marginTop: 8 },
+  
+  removeBtn: { padding: theme.spacing.s, backgroundColor: theme.colors.dangerLight, borderRadius: theme.radius.round },
+  removeBtnText: { color: theme.colors.danger, fontSize: 16, fontWeight: '900' },
+
+  // Section 2: Search & Add
+  searchWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: theme.radius.l, paddingHorizontal: theme.spacing.m, ...theme.shadows.sm },
+  searchIcon: { fontSize: 18, marginRight: theme.spacing.s, opacity: 0.5 },
+  searchInput: { flex: 1, paddingVertical: 16, fontSize: 16, color: theme.colors.text, fontWeight: '500' },
+  
+  inventoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.s },
+  inventoryCard: { 
+    width: '48%', 
+    backgroundColor: theme.colors.surface, 
+    borderRadius: theme.radius.l, 
+    padding: theme.spacing.m,
+    ...theme.shadows.sm,
+    borderWidth: 2,
+    borderColor: 'transparent'
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    marginTop: 14,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  inventoryCardActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primaryLight },
+  inventoryCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.s },
+  inventoryItemName: { fontWeight: '700', fontSize: 15, color: theme.colors.text, flex: 1, marginRight: theme.spacing.xs },
+  inventoryItemBadge: { backgroundColor: theme.colors.primary, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  inventoryItemBadgeText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
+  inventoryItemPrice: { fontSize: 18, fontWeight: '800', color: theme.colors.text, marginBottom: theme.spacing.m },
+  addButtonWrapper: { backgroundColor: theme.colors.inputBg, paddingVertical: 8, borderRadius: theme.radius.m, alignItems: 'center' },
+  addButtonText: { color: theme.colors.primary, fontWeight: '800', fontSize: 13, letterSpacing: 1 },
+  emptyStateWrapper: { width: '100%', alignItems: 'center', paddingVertical: theme.spacing.xl },
+
+  // Section 3: Details
+  formGroup: { marginBottom: theme.spacing.m },
+  formRow: { flexDirection: 'row', gap: theme.spacing.m },
+  formGroupHalf: { flex: 1, marginBottom: theme.spacing.m },
+  label: { fontSize: 14, fontWeight: '700', color: theme.colors.text, marginBottom: theme.spacing.s },
+  input: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.m, padding: 16, fontSize: 16, color: theme.colors.text, ...theme.shadows.sm },
+  chipRow: { flexDirection: 'row', gap: theme.spacing.s, flexWrap: 'wrap' },
+  chip: { flex: 1, minWidth: 90, paddingVertical: 14, backgroundColor: theme.colors.surface, borderRadius: theme.radius.m, alignItems: 'center', ...theme.shadows.sm, borderWidth: 2, borderColor: 'transparent' },
+  chipActive: { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary },
+  chipText: { color: theme.colors.textSecondary, fontWeight: '700', fontSize: 14 },
+  chipTextActive: { color: theme.colors.primary },
+
+  // Footer
+  footer: { 
+    position: 'absolute', 
+    bottom: 0, left: 0, right: 0, 
+    padding: theme.spacing.m, 
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: 'rgba(255,255,255,0.9)', 
+    borderTopWidth: 1, 
+    borderTopColor: theme.colors.border, 
+    alignItems: 'center' 
   },
-  input: {
-    borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: 8,
-    fontSize: 15,
-    color: '#334155',
-  },
-  row: { flexDirection: 'row', gap: 8, marginTop: 6 },
-  typeBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  typeBtnActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  ftBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  ftBtnActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
-  },
-  addLink: { color: theme.colors.primary, fontWeight: 'bold', fontSize: 14 },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  itemCategory: { fontWeight: '700', fontSize: 14, color: '#334155' },
-  itemReason: { color: '#94A3B8', fontSize: 12, marginTop: 2 },
-  itemMath: { fontSize: 12, color: '#64748B' },
-  itemTotal: { fontWeight: '700', color: '#1E293B', fontSize: 15 },
-  emptyText: {
-    textAlign: 'center',
-    padding: 20,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    borderTopWidth: 2,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 15,
-  },
-  totalLabel: { fontSize: 15, fontWeight: '700', color: '#64748B' },
-  totalValue: { fontSize: 20, fontWeight: '800', color: theme.colors.primary },
-  snapHint: { fontSize: 12, color: '#94A3B8', marginBottom: 10 },
-  snapBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  snapBtnActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  submitBtn: {
-    backgroundColor: theme.colors.primary,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  submitText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  submitBtn: { width: '100%', maxWidth: 800, paddingVertical: 18, borderRadius: theme.radius.xl },
 });

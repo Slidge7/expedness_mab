@@ -11,6 +11,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { missionService, MissionDTO } from '../missionService';
 import { theme } from '../../../../theme';
+import { useTranslation } from 'react-i18next';
+import { translateMissionStatus } from '../../../../i18n/helpers';
 
 const InfoRow = ({
   label,
@@ -28,6 +30,7 @@ const InfoRow = ({
 export const MissionDetailScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { t } = useTranslation();
   const missionId = route.params?.missionId as number;
   const [mission, setMission] = useState<MissionDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +39,7 @@ export const MissionDetailScreen = () => {
     try {
       setMission(await missionService.getById(missionId));
     } catch {
-      Alert.alert('Error', 'Failed to load mission.');
+      Alert.alert(t('common.error'), t('missions.load_failed'));
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -48,17 +51,17 @@ export const MissionDetailScreen = () => {
   }, [missionId]);
 
   const handleDelete = () => {
-    Alert.alert('Delete Mission', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('missions.delete_title'), t('missions.delete_confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await missionService.delete(missionId);
             navigation.goBack();
           } catch {
-            Alert.alert('Error', 'Failed to delete mission.');
+            Alert.alert(t('common.error'), t('missions.delete_failed'));
           }
         },
       },
@@ -79,24 +82,26 @@ export const MissionDetailScreen = () => {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
       <Text style={styles.title}>{mission?.title}</Text>
       <View style={styles.statusPill}>
-        <Text style={styles.statusText}>{mission?.status}</Text>
+        <Text style={styles.statusText}>
+          {mission?.status ? translateMissionStatus(t, mission.status) : null}
+        </Text>
       </View>
 
       <View style={styles.section}>
-        <InfoRow label="Description" value={mission?.description} />
-        <InfoRow label="Client" value={mission?.clientName} />
-        <InfoRow label="Provider" value={mission?.providerName} />
+        <InfoRow label={t('common.description')} value={mission?.description} />
+        <InfoRow label={t('transaction.client')} value={mission?.clientName} />
+        <InfoRow label={t('transaction.provider')} value={mission?.providerName} />
       </View>
 
       <TouchableOpacity
         style={styles.editBtn}
         onPress={() => navigation.navigate('EditMission', { missionId })}
       >
-        <Text style={styles.editText}>Edit Mission</Text>
+        <Text style={styles.editText}>{t('nav.edit_mission')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-        <Text style={styles.deleteText}>Delete Mission</Text>
+        <Text style={styles.deleteText}>{t('missions.delete_title')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

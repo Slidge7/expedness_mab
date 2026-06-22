@@ -11,6 +11,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { locationService, LocationDTO } from '../api/locationService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 const InfoRow = ({
   label,
@@ -28,6 +29,7 @@ const InfoRow = ({
 export const LocationDetailScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { t } = useTranslation();
   const locationId = route.params?.locationId as number;
   const [location, setLocation] = useState<LocationDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,24 +39,24 @@ export const LocationDetailScreen = () => {
       .getById(locationId)
       .then(setLocation)
       .catch(() => {
-        Alert.alert('Error', 'Failed to load location.');
+        Alert.alert(t('common.error'), t('locations.load_failed'));
         navigation.goBack();
       })
       .finally(() => setLoading(false));
-  }, [locationId, navigation]);
+  }, [locationId, navigation, t]);
 
   const handleDelete = () => {
-    Alert.alert('Delete Location', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('locations.delete_title'), t('locations.delete_confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await locationService.delete(locationId);
             navigation.goBack();
           } catch {
-            Alert.alert('Error', 'Failed to delete location.');
+            Alert.alert(t('common.error'), t('locations.delete_failed'));
           }
         },
       },
@@ -80,26 +82,26 @@ export const LocationDetailScreen = () => {
 
       <View style={styles.section}>
         <InfoRow
-          label="Coordinates"
+          label={t('locations.coordinates')}
           value={
             location?.latitude != null && location?.longitude != null
               ? `${location.latitude}, ${location.longitude}`
               : null
           }
         />
-        <InfoRow label="Client" value={location?.clientName} />
-        <InfoRow label="Provider" value={location?.providerName} />
+        <InfoRow label={t('transaction.client')} value={location?.clientName} />
+        <InfoRow label={t('transaction.provider')} value={location?.providerName} />
       </View>
 
       <TouchableOpacity
         style={styles.editBtn}
         onPress={() => navigation.navigate('EditLocation', { locationId })}
       >
-        <Text style={styles.editText}>Edit Location</Text>
+        <Text style={styles.editText}>{t('nav.edit_location')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-        <Text style={styles.deleteText}>Delete Location</Text>
+        <Text style={styles.deleteText}>{t('locations.delete_title')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

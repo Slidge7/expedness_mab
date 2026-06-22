@@ -2,45 +2,51 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { theme } from '../../../theme';
 
-export type ManagementTab = 'clients' | 'providers' | 'missions' | 'locations' | 'stock';
+import { useTranslation } from 'react-i18next';
 
-const TABS: { key: ManagementTab; label: string }[] = [
-  { key: 'clients', label: 'Clients' },
-  { key: 'providers', label: 'Providers' },
-  { key: 'missions', label: 'Missions' },
-  { key: 'locations', label: 'Locations' },
-  { key: 'stock', label: 'Stock' },
-];
+export type ManagementTab = 'clients' | 'providers' | 'missions' | 'locations' | 'stock';
 
 interface Props {
   active: ManagementTab;
   onChange: (tab: ManagementTab) => void;
 }
 
-export const ManagementTabBar: React.FC<Props> = ({ active, onChange }) => (
-  <View style={styles.wrapper}>
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-    >
-      {TABS.map(tab => {
-        const selected = active === tab.key;
-        return (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, selected && styles.tabActive]}
-            onPress={() => onChange(tab.key)}
-          >
-            <Text style={[styles.tabText, selected && styles.tabTextActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
-  </View>
-);
+export const ManagementTabBar: React.FC<Props> = ({ active, onChange }) => {
+  const { t } = useTranslation();
+
+  const TABS: { key: ManagementTab; label: string }[] = [
+    { key: 'clients', label: t('management.clients') },
+    { key: 'providers', label: t('management.providers') },
+    { key: 'missions', label: t('management.missions') },
+    { key: 'locations', label: t('management.locations') },
+    { key: 'stock', label: t('management.stock') },
+  ];
+
+  return (
+    <View style={styles.wrapper}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+      >
+        {TABS.map(tab => {
+          const selected = active === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, selected && styles.tabActive]}
+              onPress={() => onChange(tab.key)}
+            >
+              <Text style={[styles.tabText, selected && styles.tabTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -12,9 +12,11 @@ import {
 import { clientService, ClientDTO } from '../api/clientService';
 import { theme } from '../../../theme';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 export const ClientListScreen = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,7 +87,7 @@ export const ClientListScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No clients yet. Add your first one!</Text>
+          <Text style={styles.emptyText}>{t('management.no_clients')}</Text>
         }
       />
       <TouchableOpacity

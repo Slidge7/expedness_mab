@@ -12,9 +12,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { providerService } from '../api/providerService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const CreateProviderScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -26,17 +28,17 @@ export const CreateProviderScreen = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert('Error', 'Name is required');
+      Alert.alert(t('common.error'), 'Name is required');
       return;
     }
 
     setLoading(true);
     try {
       await providerService.create(form);
-      Alert.alert('Success', 'Provider created successfully!');
+      Alert.alert(t('common.success'), 'Provider created successfully!');
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Check your backend connection');
+      Alert.alert(t('common.error'), error.message || 'Check your backend connection');
     } finally {
       setLoading(false);
     }
@@ -44,44 +46,44 @@ export const CreateProviderScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.label}>Name *</Text>
+      <Text style={styles.label}>{t('common.name')}</Text>
       <TextInput
         style={styles.input}
         value={form.name}
-        onChangeText={t => setForm({ ...form, name: t })}
+        onChangeText={text => setForm({ ...form, name: text })}
         placeholder="Provider name"
       />
 
-      <Text style={styles.label}>Company</Text>
+      <Text style={styles.label}>{t('common.company')}</Text>
       <TextInput
         style={styles.input}
         value={form.company}
-        onChangeText={t => setForm({ ...form, company: t })}
+        onChangeText={text => setForm({ ...form, company: text })}
         placeholder="Legal or display name"
       />
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>{t('common.description')}</Text>
       <TextInput
         style={styles.input}
         value={form.description}
-        onChangeText={t => setForm({ ...form, description: t })}
+        onChangeText={text => setForm({ ...form, description: text })}
         placeholder="Optional notes"
         multiline
       />
 
-      <Text style={styles.label}>City</Text>
+      <Text style={styles.label}>{t('common.city')}</Text>
       <TextInput
         style={styles.input}
         value={form.city}
-        onChangeText={t => setForm({ ...form, city: t })}
+        onChangeText={text => setForm({ ...form, city: text })}
         placeholder="City"
       />
 
-      <Text style={styles.label}>Address</Text>
+      <Text style={styles.label}>{t('common.address')}</Text>
       <TextInput
         style={styles.input}
         value={form.address}
-        onChangeText={t => setForm({ ...form, address: t })}
+        onChangeText={text => setForm({ ...form, address: text })}
         placeholder="Street address"
         multiline
       />
@@ -90,12 +92,12 @@ export const CreateProviderScreen = () => {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveText}>Save Provider</Text>
+          <Text style={styles.saveText}>{t('common.save')}</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancel</Text>
+        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

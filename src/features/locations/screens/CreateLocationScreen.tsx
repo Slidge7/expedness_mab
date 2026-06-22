@@ -17,10 +17,12 @@ import { locationService } from '../api/locationService';
 import { OptionalClientPicker } from '../../transactions/components/OptionalClientPicker';
 import { OptionalProviderPicker } from '../../transactions/components/OptionalProviderPicker';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const CreateLocationScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -28,7 +30,6 @@ export const CreateLocationScreen = () => {
     dispatch(fetchProviders());
   }, [dispatch]);
 
-  // Form State
   const [form, setForm] = useState({
     name: '',
     city: '',
@@ -40,9 +41,8 @@ export const CreateLocationScreen = () => {
   });
 
   const handleSave = async () => {
-    // Validation
     if (!form.name || !form.city || !form.address) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert(t('common.error'), t('locations.fill_required'));
       return;
     }
 
@@ -58,12 +58,12 @@ export const CreateLocationScreen = () => {
         providerId: form.providerId,
       });
 
-      Alert.alert('Success', 'Location created successfully!');
-      navigation.goBack(); // Return to list
+      Alert.alert(t('common.success'), t('locations.created'));
+      navigation.goBack();
     } catch (error: any) {
       Alert.alert(
-        'Save Failed',
-        error.message || 'Check your backend connection',
+        t('locations.save_failed'),
+        error.message || t('locations.check_backend'),
       );
     } finally {
       setLoading(false);
@@ -75,61 +75,61 @@ export const CreateLocationScreen = () => {
       style={styles.container}
       contentContainerStyle={{ padding: 20 }}
     >
-      <Text style={styles.label}>Location Name *</Text>
+      <Text style={styles.label}>{t('locations.location_name')}</Text>
       <TextInput
         style={styles.input}
         value={form.name}
-        onChangeText={t => setForm({ ...form, name: t })}
-        placeholder="e.g. Main Warehouse"
+        onChangeText={text => setForm({ ...form, name: text })}
+        placeholder={t('locations.name_placeholder')}
       />
 
-      <Text style={styles.label}>City *</Text>
+      <Text style={styles.label}>{t('locations.city_required')}</Text>
       <TextInput
         style={styles.input}
         value={form.city}
-        onChangeText={t => setForm({ ...form, city: t })}
-        placeholder="e.g. Casablanca"
+        onChangeText={text => setForm({ ...form, city: text })}
+        placeholder={t('locations.city_placeholder')}
       />
 
-      <Text style={styles.label}>Address *</Text>
+      <Text style={styles.label}>{t('locations.address_required')}</Text>
       <TextInput
         style={styles.input}
         value={form.address}
-        onChangeText={t => setForm({ ...form, address: t })}
-        placeholder="Full street address"
+        onChangeText={text => setForm({ ...form, address: text })}
+        placeholder={t('locations.address_placeholder')}
         multiline
       />
 
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={styles.label}>Latitude</Text>
+          <Text style={styles.label}>{t('locations.latitude')}</Text>
           <TextInput
             style={styles.input}
             value={form.latitude}
-            onChangeText={t => setForm({ ...form, latitude: t })}
+            onChangeText={text => setForm({ ...form, latitude: text })}
             keyboardType="numeric"
             placeholder="33.57"
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Longitude</Text>
+          <Text style={styles.label}>{t('locations.longitude')}</Text>
           <TextInput
             style={styles.input}
             value={form.longitude}
-            onChangeText={t => setForm({ ...form, longitude: t })}
+            onChangeText={text => setForm({ ...form, longitude: text })}
             keyboardType="numeric"
             placeholder="-7.58"
           />
         </View>
       </View>
 
-      <Text style={styles.label}>Client (Optional)</Text>
+      <Text style={styles.label}>{t('locations.client_optional')}</Text>
       <OptionalClientPicker
         value={form.clientId}
         onChange={clientId => setForm({ ...form, clientId })}
       />
 
-      <Text style={styles.label}>Provider (Optional)</Text>
+      <Text style={styles.label}>{t('locations.provider_optional')}</Text>
       <OptionalProviderPicker
         value={form.providerId}
         onChange={providerId => setForm({ ...form, providerId })}
@@ -143,7 +143,7 @@ export const CreateLocationScreen = () => {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveText}>Save Location</Text>
+          <Text style={styles.saveText}>{t('locations.save_location')}</Text>
         )}
       </TouchableOpacity>
 
@@ -151,7 +151,7 @@ export const CreateLocationScreen = () => {
         style={styles.cancelButton}
         onPress={() => navigation.goBack()}
       >
-        <Text style={styles.cancelText}>Cancel</Text>
+        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

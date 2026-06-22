@@ -19,6 +19,7 @@ import { fetchItemById } from '../../../store/itemSlice';
 import { stockService } from '../api/stockService';
 import { ItemDTO } from '../../items/api/itemService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 type AdjustMode = 'ADD' | 'REMOVE' | 'SET' | null;
 
@@ -26,6 +27,7 @@ export const ItemStockDetailScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const itemId = route.params?.itemId as number;
 
   const [item, setItem] = useState<ItemDTO | null>(null);
@@ -41,12 +43,12 @@ export const ItemStockDetailScreen = () => {
       const data = await stockService.getByItem(itemId);
       setItem(data);
     } catch {
-      Alert.alert('Error', 'Failed to load stock info.');
+      Alert.alert(t('common.error'), t('stock.load_failed'));
       navigation.goBack();
     } finally {
       setLoading(false);
     }
-  }, [itemId, navigation]);
+  }, [itemId, navigation, t]);
 
   useEffect(() => {
     load();
@@ -56,11 +58,11 @@ export const ItemStockDetailScreen = () => {
     if (!adjustMode) return;
     const qty = parseFloat(adjustQty);
     if (isNaN(qty) || qty < 0) {
-      Alert.alert('Error', 'Enter a valid quantity.');
+      Alert.alert(t('common.error'), t('stock.invalid_quantity'));
       return;
     }
     if (adjustMode !== 'SET' && qty <= 0) {
-      Alert.alert('Error', 'Quantity must be greater than zero.');
+      Alert.alert(t('common.error'), t('stock.quantity_positive'));
       return;
     }
 
@@ -74,36 +76,32 @@ export const ItemStockDetailScreen = () => {
       setAdjustMode(null);
       setAdjustQty('');
     } catch {
-      Alert.alert('Error', 'Failed to adjust stock.');
+      Alert.alert(t('common.error'), t('stock.adjust_failed'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDisable = () => {
-    Alert.alert(
-      'Disable Stock Tracking',
-      'Stock will be reset to zero for this item.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disable',
-          style: 'destructive',
-          onPress: async () => {
-            setDisabling(true);
-            try {
-              await dispatch(disableStock(itemId)).unwrap();
-              await dispatch(fetchItemById(itemId));
-              navigation.goBack();
-            } catch {
-              Alert.alert('Error', 'Failed to disable stock tracking.');
-            } finally {
-              setDisabling(false);
-            }
-          },
+    Alert.alert(t('stock.disable_title'), t('stock.disable_confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('items.disable'),
+        style: 'destructive',
+        onPress: async () => {
+          setDisabling(true);
+          try {
+            await dispatch(disableStock(itemId)).unwrap();
+            await dispatch(fetchItemById(itemId));
+            navigation.goBack();
+          } catch {
+            Alert.alert(t('common.error'), t('stock.disable_failed'));
+          } finally {
+            setDisabling(false);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   if (loading || !item) {
@@ -123,34 +121,40 @@ export const ItemStockDetailScreen = () => {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.itemName}>{item.name}</Text>
-        {item.unit && <Text style={styles.unit}>Unit: {item.unit}</Text>}
+        {item.unit && (
+          <Text style={styles.unit}>{t('stock.unit_label', { unit: item.unit })}</Text>
+        )}
 
         <View style={[styles.qtyCard, low && styles.qtyCardLow]}>
-          <Text style={styles.qtyLabel}>Current Stock</Text>
+          <Text style={styles.qtyLabel}>{t('stock.current_stock')}</Text>
           <Text style={[styles.qtyValue, low && styles.qtyValueLow]}>
             {item.currentStock ?? 0}
           </Text>
           {item.minStock != null && (
-            <Text style={styles.minLabel}>Minimum: {item.minStock}</Text>
+            <Text style={styles.minLabel}>
+              {t('stock.minimum', { min: item.minStock })}
+            </Text>
           )}
-          {low && <Text style={styles.lowWarning}>Stock is below minimum</Text>}
+          {low && (
+            <Text style={styles.lowWarning}>{t('stock.below_minimum')}</Text>
+          )}
         </View>
 
         {adjustMode ? (
           <View style={styles.adjustPanel}>
             <Text style={styles.adjustTitle}>
               {adjustMode === 'ADD'
-                ? 'Add Stock'
+                ? t('stock.add_stock')
                 : adjustMode === 'REMOVE'
-                  ? 'Remove Stock'
-                  : 'Set Stock'}
+                  ? t('stock.remove_stock')
+                  : t('stock.set_stock')}
             </Text>
             <TextInput
               style={styles.input}
               value={adjustQty}
               onChangeText={setAdjustQty}
               keyboardType="decimal-pad"
-              placeholder="Quantity"
+              placeholder={t('stock.quantity')}
               placeholderTextColor="#94A3B8"
             />
             <View style={styles.adjustActions}>
@@ -161,7 +165,7 @@ export const ItemStockDetailScreen = () => {
                   setAdjustQty('');
                 }}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.confirmBtn}
@@ -171,7 +175,7 @@ export const ItemStockDetailScreen = () => {
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
-                  <Text style={styles.confirmBtnText}>Apply</Text>
+                  <Text style={styles.confirmBtnText}>{t('stock.apply')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -182,19 +186,19 @@ export const ItemStockDetailScreen = () => {
               style={styles.actionBtn}
               onPress={() => setAdjustMode('ADD')}
             >
-              <Text style={styles.actionBtnText}>+ Add</Text>
+              <Text style={styles.actionBtnText}>{t('stock.add')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
               onPress={() => setAdjustMode('REMOVE')}
             >
-              <Text style={styles.actionBtnText}>− Remove</Text>
+              <Text style={styles.actionBtnText}>{t('stock.remove')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
               onPress={() => setAdjustMode('SET')}
             >
-              <Text style={styles.actionBtnText}>Set</Text>
+              <Text style={styles.actionBtnText}>{t('stock.set')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -203,7 +207,7 @@ export const ItemStockDetailScreen = () => {
           style={styles.itemLink}
           onPress={() => navigation.navigate('ItemDetail', { itemId })}
         >
-          <Text style={styles.itemLinkText}>View Item Details →</Text>
+          <Text style={styles.itemLinkText}>{t('stock.view_item')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -214,7 +218,7 @@ export const ItemStockDetailScreen = () => {
           {disabling ? (
             <ActivityIndicator size="small" color="#EF4444" />
           ) : (
-            <Text style={styles.disableBtnText}>Disable Stock Tracking</Text>
+            <Text style={styles.disableBtnText}>{t('items.disable_stock')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

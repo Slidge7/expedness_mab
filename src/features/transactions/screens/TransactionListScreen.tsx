@@ -10,9 +10,11 @@ import {
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { transactionService, TransactionDTO } from '../api/transactionService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const TransactionListScreen = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const isFocused = useIsFocused();
   const [data, setData] = useState<TransactionDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export const TransactionListScreen = () => {
         <View
           style={[
             styles.accent,
-            { backgroundColor: isIncome ? '#10B981' : '#EF4444' },
+            { backgroundColor: isIncome ? theme.colors.success : theme.colors.danger },
           ]}
         />
 
@@ -65,7 +67,7 @@ export const TransactionListScreen = () => {
             <Text
               style={[
                 styles.amount,
-                { color: isIncome ? '#10B981' : '#EF4444' },
+                { color: isIncome ? theme.colors.success : theme.colors.danger },
               ]}
             >
               {isIncome ? '+' : '-'}
@@ -79,9 +81,9 @@ export const TransactionListScreen = () => {
           <View style={styles.metaRow}>
             <Text style={styles.date}>
               {new Date(item.transactionDate).toLocaleDateString()} ·{' '}
-              {item.items?.length || 0} items
+              {t('transaction.items_total', { count: item.items?.length || 0 })}
             </Text>
-            <Text style={styles.createdBy}>{item.createdBy || 'System'}</Text>
+            <Text style={styles.createdBy}>{item.createdBy || t('transaction.system')}</Text>
           </View>
 
           {/* Badges */}
@@ -101,19 +103,19 @@ export const TransactionListScreen = () => {
             {item.missionId && (
               <View style={styles.badgeGray}>
                 <Text style={styles.badgeTextDark}>
-                  Mission #{item.missionId}
+                  {t('transaction.mission')} #{item.missionId}
                 </Text>
               </View>
             )}
             {item.clientName && (
               <View style={styles.badgeGray}>
-                <Text style={styles.badgeTextDark}>Client: {item.clientName}</Text>
+                <Text style={styles.badgeTextDark}>{t('transaction.client')}: {item.clientName}</Text>
               </View>
             )}
             {item.providerName && (
               <View style={styles.badgeGray}>
                 <Text style={styles.badgeTextDark}>
-                  Provider: {item.providerName}
+                  {t('transaction.provider')}: {item.providerName}
                 </Text>
               </View>
             )}
@@ -140,7 +142,7 @@ export const TransactionListScreen = () => {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No transactions found.</Text>
+              <Text style={styles.emptyText}>{t('transaction.no_transactions')}</Text>
             </View>
           ) : null
         }
@@ -158,98 +160,91 @@ export const TransactionListScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F5F9' },
-  listPadding: { paddingBottom: 100, paddingTop: 8 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  listPadding: { paddingBottom: 100, paddingTop: theme.spacing.m },
 
   card: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: theme.spacing.m,
+    marginBottom: theme.spacing.m,
+    borderRadius: theme.radius.l,
+    ...theme.shadows.sm,
     overflow: 'hidden',
   },
   accent: {
-    width: 4,
+    width: 6,
   },
   cardBody: {
     flex: 1,
-    padding: 14,
+    padding: theme.spacing.m,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: theme.spacing.s,
   },
   desc: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.colors.text,
     flex: 1,
   },
   amount: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '900',
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
+    marginTop: theme.spacing.xs,
   },
-  date: { fontSize: 12, color: '#64748B' },
-  createdBy: { fontSize: 11, color: '#94A3B8', textTransform: 'uppercase' },
+  date: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' },
+  createdBy: { fontSize: 12, color: theme.colors.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
 
-  badges: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
+  badges: { flexDirection: 'row', gap: 8, marginTop: theme.spacing.m, flexWrap: 'wrap' },
   badgeDark: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
+    backgroundColor: theme.colors.secondary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.round,
   },
   badgePurple: {
-    backgroundColor: '#7C3AED',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.round,
   },
   badgeGray: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
+    backgroundColor: theme.colors.inputBg,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.round,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  badgeTextDark: { fontSize: 10, color: '#475569', fontWeight: '600' },
+  badgeTextDark: { fontSize: 11, color: theme.colors.textSecondary, fontWeight: '700', letterSpacing: 0.5 },
 
   emptyContainer: { flex: 1, alignItems: 'center', marginTop: 50 },
-  emptyText: { color: '#94A3B8', fontSize: 16 },
+  emptyText: { color: theme.colors.textSecondary, fontSize: 16, fontWeight: '500' },
 
   fab: {
     position: 'absolute',
     bottom: 24,
     right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    ...theme.shadows.lg,
   },
-  fabText: { color: '#FFF', fontSize: 30, fontWeight: '300' },
+  fabText: { color: '#FFF', fontSize: 32, fontWeight: '400', marginTop: -2 },
 });

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { categoryService, CategoryDTO } from '../api/categoryService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   value?: string;
@@ -23,6 +24,7 @@ export const CategoryPicker: React.FC<Props> = ({
   onChange,
   required = false,
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
@@ -80,7 +82,7 @@ export const CategoryPicker: React.FC<Props> = ({
     <>
       <TouchableOpacity style={styles.trigger} onPress={() => setOpen(true)}>
         <Text style={value ? styles.triggerText : styles.triggerPlaceholder}>
-          {value || 'Select or type a category'}
+          {value || t('transaction.select_category')}
         </Text>
         <Text style={styles.chevron}>▾</Text>
       </TouchableOpacity>
@@ -92,13 +94,13 @@ export const CategoryPicker: React.FC<Props> = ({
           onPress={() => setOpen(false)}
         />
         <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>Category</Text>
+          <Text style={styles.sheetTitle}>{t('transaction.category')}</Text>
 
           <TextInput
             style={styles.searchInput}
             value={query}
             onChangeText={setQuery}
-            placeholder="Search or type new category…"
+            placeholder={t('transaction.search_category')}
             placeholderTextColor="#94A3B8"
             autoFocus
           />
@@ -120,7 +122,7 @@ export const CategoryPicker: React.FC<Props> = ({
                     style={styles.newItem}
                     onPress={() => handleSelect(query.trim())}
                   >
-                    <Text style={styles.newItemLabel}>+ Create </Text>
+                    <Text style={styles.newItemLabel}>{t('transaction.create_category')}</Text>
                     <Text style={styles.newItemName}>"{query.trim()}"</Text>
                   </TouchableOpacity>
                 ) : null
@@ -146,7 +148,7 @@ export const CategoryPicker: React.FC<Props> = ({
               )}
               ListEmptyComponent={
                 !isNewValue ? (
-                  <Text style={styles.empty}>No categories found</Text>
+                  <Text style={styles.empty}>{t('transaction.no_categories')}</Text>
                 ) : null
               }
             />

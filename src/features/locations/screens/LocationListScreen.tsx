@@ -12,9 +12,11 @@ import {
 import { locationService, LocationDTO } from '../api/locationService';
 import { theme } from '../../../theme';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 export const LocationListScreen = () => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
 
   const [locations, setLocations] = useState<LocationDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,10 +28,7 @@ export const LocationListScreen = () => {
       setLocations(data);
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        'Error',
-        'Failed to fetch locations. Ensure your Bearer token is valid.',
-      );
+      Alert.alert(t('common.error'), t('locations.fetch_failed'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,7 +61,10 @@ export const LocationListScreen = () => {
       <Text style={styles.address}>{item.address}</Text>
       <View style={styles.coords}>
         <Text style={styles.coordText}>
-          Lat: {item.latitude} | Lng: {item.longitude}
+          {t('locations.coords_format', {
+            lat: item.latitude,
+            lng: item.longitude,
+          })}
         </Text>
       </View>
     </View>
@@ -89,16 +91,13 @@ export const LocationListScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            No locations found. Add your first one!
-          </Text>
+          <Text style={styles.emptyText}>{t('locations.no_locations')}</Text>
         }
       />
 
-      {/* Floating Action Button for Adding New Location */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('CreateLocation')} // 👈 CHANGE THIS
+        onPress={() => navigation.navigate('CreateLocation')}
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>

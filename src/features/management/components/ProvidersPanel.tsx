@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { providerService, ProviderDTO } from '../../providers/api/providerService';
 import { theme } from '../../../theme';
 import { managementStyles as s } from '../styles/managementStyles';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   isActive: boolean;
@@ -19,6 +20,7 @@ interface Props {
 
 export const ProvidersPanel: React.FC<Props> = ({ isActive }) => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const [items, setItems] = useState<ProviderDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +29,7 @@ export const ProvidersPanel: React.FC<Props> = ({ isActive }) => {
     try {
       setItems(await providerService.getAll());
     } catch {
-      Alert.alert('Error', 'Failed to load providers.');
+      Alert.alert(t('common.error'), 'Failed to load providers.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -70,11 +72,11 @@ export const ProvidersPanel: React.FC<Props> = ({ isActive }) => {
             </View>
             {item.company ? <Text style={s.subtitle}>{item.company}</Text> : null}
             {item.address ? <Text style={s.meta}>{item.address}</Text> : null}
-            <Text style={[s.meta, { marginTop: 6 }]}>Tap to manage contacts</Text>
+            <Text style={[s.meta, { marginTop: 6 }]}>{t('management.tap_to_manage_contacts')}</Text>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text style={s.emptyText}>No providers yet. Add your first one.</Text>
+          <Text style={s.emptyText}>{t('management.no_providers')}</Text>
         }
       />
       <TouchableOpacity

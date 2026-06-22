@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../api/authService';
 import { theme } from '../../../theme';
 
@@ -20,6 +21,7 @@ import { loginSuccess } from '../../../store/authSlice';
 export const RegisterScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
@@ -28,7 +30,7 @@ export const RegisterScreen = () => {
 
   const handleRegister = async () => {
     if (!username || !email || !password) {
-      Alert.alert('Error', 'Please fill all fields');
+      Alert.alert(t('common.error'), t('auth.fill_all_fields'));
       return;
     }
 
@@ -42,8 +44,8 @@ export const RegisterScreen = () => {
     } catch (error: any) {
       const msg =
         error.response?.data?.message ||
-        'Registration failed. Try a different username.';
-      Alert.alert('Error', msg);
+        t('auth.registration_failed');
+      Alert.alert(t('common.error'), msg);
     } finally {
       setLoading(false);
     }
@@ -53,12 +55,12 @@ export const RegisterScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
         <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Expedness ERP</Text>
+          <Text style={styles.title}>{t('auth.create_account')}</Text>
+          <Text style={styles.subtitle}>{t('auth.join_subtitle')}</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Username</Text>
+          <Text style={styles.label}>{t('auth.username')}</Text>
           <TextInput
             style={styles.input}
             value={username}
@@ -66,7 +68,7 @@ export const RegisterScreen = () => {
             autoCapitalize="none"
           />
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('auth.email')}</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -75,7 +77,7 @@ export const RegisterScreen = () => {
             keyboardType="email-address"
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('auth.password')}</Text>
           <TextInput
             style={styles.input}
             value={password}
@@ -91,7 +93,7 @@ export const RegisterScreen = () => {
             {loading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.buttonText}>Register</Text>
+              <Text style={styles.buttonText}>{t('auth.register')}</Text>
             )}
           </TouchableOpacity>
 
@@ -100,7 +102,8 @@ export const RegisterScreen = () => {
             style={styles.linkButton}
           >
             <Text style={styles.linkText}>
-              Back to <Text style={styles.linkBold}>Login</Text>
+              {t('auth.back_to')}{' '}
+              <Text style={styles.linkBold}>{t('auth.login')}</Text>
             </Text>
           </TouchableOpacity>
         </View>

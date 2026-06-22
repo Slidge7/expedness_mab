@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../api/authService';
 import apiClient from '../../../api/client';
 import { DEMO_ACCOUNT } from '../demoAccount';
@@ -27,6 +28,7 @@ import { loginSuccess } from '../../../store/authSlice';
 export const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
@@ -34,7 +36,7 @@ export const LoginScreen = () => {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert('Error', 'Please enter username and password');
+      Alert.alert(t('common.error'), t('auth.enter_credentials'));
       return;
     }
 
@@ -45,12 +47,12 @@ export const LoginScreen = () => {
       console.log('Login Error:', error);
       const msg =
         error.response?.status === 401
-          ? 'Invalid Username or Password'
-          : 'Network Error. Check your connection.';
+          ? t('auth.invalid_credentials')
+          : t('auth.network_error');
       if (Platform.OS === 'web') {
-        window.alert(`Login Failed\n${msg}`);
+        window.alert(`${t('auth.login_failed')}\n${msg}`);
       } else {
-        Alert.alert('Login Failed', msg);
+        Alert.alert(t('auth.login_failed'), msg);
       }
     } finally {
       setLoading(false);
@@ -73,12 +75,12 @@ export const LoginScreen = () => {
     } catch (error: any) {
       const msg =
         error.response?.status === 401
-          ? 'Demo account login failed after registration.'
-          : error.message || 'Network Error. Check your connection and backend.';
+          ? t('auth.demo_login_failed_after_register')
+          : error.message || t('auth.network_error_backend');
       if (Platform.OS === 'web') {
-        window.alert(`Demo Login Failed\n${msg}`);
+        window.alert(`${t('auth.demo_login_failed')}\n${msg}`);
       } else {
-        Alert.alert('Demo Login Failed', msg);
+        Alert.alert(t('auth.demo_login_failed'), msg);
       }
     } finally {
       setLoading(false);
@@ -89,18 +91,18 @@ export const LoginScreen = () => {
     try {
       console.log('Testing connection...');
       const response = await apiClient.get('/api/auth/test');
+      const backendMsg = t('auth.backend_says', { message: response.data });
       if (Platform.OS === 'web') {
-        window.alert(`✅ Connection OK\nBackend says: "${response.data}"`);
+        window.alert(`${t('auth.connection_ok')}\n${backendMsg}`);
       } else {
-        Alert.alert('✅ Connection OK', `Backend says: "${response.data}"`);
+        Alert.alert(t('auth.connection_ok'), backendMsg);
       }
     } catch (error: any) {
+      const errMsg = error.message || t('auth.unknown_error');
       if (Platform.OS === 'web') {
-        window.alert(
-          `❌ Connection Failed\n${error.message || 'Unknown error'}`,
-        );
+        window.alert(`${t('auth.connection_failed')}\n${errMsg}`);
       } else {
-        Alert.alert('❌ Connection Failed', error.message || 'Unknown error');
+        Alert.alert(t('auth.connection_failed'), errMsg);
       }
     }
   };
@@ -109,12 +111,12 @@ export const LoginScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
         <View style={styles.header}>
-          <Text style={styles.title}>Expedness ERP</Text>
-          <Text style={styles.subtitle}>Sign in to your workspace</Text>
+          <Text style={styles.title}>{t('auth.app_title')}</Text>
+          <Text style={styles.subtitle}>{t('auth.sign_in_subtitle')}</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Username</Text>
+          <Text style={styles.label}>{t('auth.username')}</Text>
           <TextInput
             style={styles.input}
             value={username}
@@ -123,7 +125,7 @@ export const LoginScreen = () => {
             autoCapitalize="none"
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('auth.password')}</Text>
           <TextInput
             style={styles.input}
             value={password}
@@ -140,7 +142,7 @@ export const LoginScreen = () => {
             {loading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.buttonText}>Access Dashboard</Text>
+              <Text style={styles.buttonText}>{t('auth.access_dashboard')}</Text>
             )}
           </TouchableOpacity>
 
@@ -149,7 +151,7 @@ export const LoginScreen = () => {
             onPress={handleDemoLogin}
             disabled={loading}
           >
-            <Text style={styles.demoButtonText}>Use Demo Account (farisse)</Text>
+            <Text style={styles.demoButtonText}>{t('auth.use_demo_account')}</Text>
           </TouchableOpacity>
 
           {/* Navigation to Register */}
@@ -158,8 +160,8 @@ export const LoginScreen = () => {
             style={styles.linkButton}
           >
             <Text style={styles.linkText}>
-              Don't have an account?{' '}
-              <Text style={styles.linkBold}>Sign Up</Text>
+              {t('auth.no_account')}{' '}
+              <Text style={styles.linkBold}>{t('auth.sign_up')}</Text>
             </Text>
           </TouchableOpacity>
 
@@ -170,7 +172,7 @@ export const LoginScreen = () => {
             style={styles.testButton}
             onPress={handleTestConnection}
           >
-            <Text style={styles.testButtonText}>⚠️ RUN BACKEND TEST</Text>
+            <Text style={styles.testButtonText}>{t('auth.run_backend_test')}</Text>
           </TouchableOpacity>
         </View>
       </View>

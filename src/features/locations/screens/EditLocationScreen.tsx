@@ -17,10 +17,12 @@ import { locationService } from '../api/locationService';
 import { OptionalClientPicker } from '../../transactions/components/OptionalClientPicker';
 import { OptionalProviderPicker } from '../../transactions/components/OptionalProviderPicker';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const EditLocationScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
+  const { t } = useTranslation();
   const locationId = route.params?.locationId as number;
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
@@ -52,15 +54,15 @@ export const EditLocationScreen = () => {
         });
       })
       .catch(() => {
-        Alert.alert('Error', 'Failed to load location.');
+        Alert.alert(t('common.error'), t('locations.load_failed'));
         navigation.goBack();
       })
       .finally(() => setFetching(false));
-  }, [locationId, dispatch, navigation]);
+  }, [locationId, dispatch, navigation, t]);
 
   const handleSave = async () => {
     if (!form.name || !form.city || !form.address) {
-      Alert.alert('Error', 'Name, city, and address are required');
+      Alert.alert(t('common.error'), t('locations.required_fields'));
       return;
     }
 
@@ -75,10 +77,13 @@ export const EditLocationScreen = () => {
         clientId: form.clientId,
         providerId: form.providerId,
       });
-      Alert.alert('Success', 'Location updated.');
+      Alert.alert(t('common.success'), t('locations.updated'));
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Check your backend connection');
+      Alert.alert(
+        t('locations.save_failed'),
+        error.message || t('locations.check_backend'),
+      );
     } finally {
       setLoading(false);
     }
@@ -96,56 +101,56 @@ export const EditLocationScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.label}>Location Name *</Text>
+      <Text style={styles.label}>{t('locations.location_name')}</Text>
       <TextInput
         style={styles.input}
         value={form.name}
-        onChangeText={t => setForm({ ...form, name: t })}
+        onChangeText={text => setForm({ ...form, name: text })}
       />
 
-      <Text style={styles.label}>City *</Text>
+      <Text style={styles.label}>{t('locations.city_required')}</Text>
       <TextInput
         style={styles.input}
         value={form.city}
-        onChangeText={t => setForm({ ...form, city: t })}
+        onChangeText={text => setForm({ ...form, city: text })}
       />
 
-      <Text style={styles.label}>Address *</Text>
+      <Text style={styles.label}>{t('locations.address_required')}</Text>
       <TextInput
         style={styles.input}
         value={form.address}
-        onChangeText={t => setForm({ ...form, address: t })}
+        onChangeText={text => setForm({ ...form, address: text })}
         multiline
       />
 
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={styles.label}>Latitude</Text>
+          <Text style={styles.label}>{t('locations.latitude')}</Text>
           <TextInput
             style={styles.input}
             value={form.latitude}
-            onChangeText={t => setForm({ ...form, latitude: t })}
+            onChangeText={text => setForm({ ...form, latitude: text })}
             keyboardType="numeric"
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Longitude</Text>
+          <Text style={styles.label}>{t('locations.longitude')}</Text>
           <TextInput
             style={styles.input}
             value={form.longitude}
-            onChangeText={t => setForm({ ...form, longitude: t })}
+            onChangeText={text => setForm({ ...form, longitude: text })}
             keyboardType="numeric"
           />
         </View>
       </View>
 
-      <Text style={styles.label}>Client (Optional)</Text>
+      <Text style={styles.label}>{t('locations.client_optional')}</Text>
       <OptionalClientPicker
         value={form.clientId}
         onChange={clientId => setForm({ ...form, clientId })}
       />
 
-      <Text style={styles.label}>Provider (Optional)</Text>
+      <Text style={styles.label}>{t('locations.provider_optional')}</Text>
       <OptionalProviderPicker
         value={form.providerId}
         onChange={providerId => setForm({ ...form, providerId })}
@@ -155,7 +160,7 @@ export const EditLocationScreen = () => {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveText}>Save Changes</Text>
+          <Text style={styles.saveText}>{t('transaction.save_changes')}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

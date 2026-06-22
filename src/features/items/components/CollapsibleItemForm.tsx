@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ItemFormPanel } from './ItemFormPanel';
 import { ItemDTO, TransactionType } from '../api/itemService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
+import { translateTransactionType } from '../../../i18n/helpers';
 
 interface CollapsibleItemFormProps {
   expanded: boolean;
@@ -21,12 +23,13 @@ export const CollapsibleItemForm: React.FC<CollapsibleItemFormProps> = ({
   onSaved,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const isEdit = !!editItem;
-  const typeLabel = itemType === 'INCOME' ? 'Income' : 'Expense';
+  const typeLabel = translateTransactionType(t, itemType);
 
   const headerTitle = isEdit
-    ? `Edit: ${editItem?.name}`
-    : `New ${typeLabel} Item`;
+    ? t('items.edit_name', { name: editItem?.name })
+    : t('items.new_type_item', { type: typeLabel });
 
   return (
     <View style={styles.wrapper}>
@@ -42,7 +45,7 @@ export const CollapsibleItemForm: React.FC<CollapsibleItemFormProps> = ({
           </Text>
         </View>
         {!expanded && !isEdit && (
-          <Text style={styles.headerAction}>Tap to add</Text>
+          <Text style={styles.headerAction}>{t('items.tap_to_add')}</Text>
         )}
       </TouchableOpacity>
 

@@ -13,6 +13,7 @@ module.exports = {
     topLevelAwait: true,
   },
   resolve: {
+    mainFields: ['browser', 'main', 'module'],
     extensions: [
       '.web.tsx',
       '.web.ts',
@@ -40,6 +41,14 @@ module.exports = {
       '@react-native-async-storage/async-storage': path.resolve(
         appDirectory,
         'node_modules/@react-native-async-storage/async-storage/lib/commonjs/index.js',
+      ),
+      i18next: path.resolve(
+        appDirectory,
+        'node_modules/i18next/dist/cjs/i18next.js',
+      ),
+      'react-i18next': path.resolve(
+        appDirectory,
+        'node_modules/react-i18next/dist/commonjs/index.js',
       ),
     },
   },

@@ -20,10 +20,13 @@ import { theme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { CategoryPicker } from '../../transactions/components/CategoryPicker';
 import { MultiProviderPicker } from '../../transactions/components/MultiProviderPicker';
+import { useTranslation } from 'react-i18next';
+import { translateTransactionType } from '../../../i18n/helpers';
 
 export const CreateItemScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tempImageFile, setTempImageFile] = useState<any>(null);
@@ -60,12 +63,12 @@ export const CreateItemScreen = () => {
   const validateForm = () => {
     const newErrors: typeof errors = {};
     if (!form.name.trim()) {
-      newErrors.name = 'Item name is required';
+      newErrors.name = t('items.name_required');
     }
     if (!form.unitPrice || isNaN(parseFloat(form.unitPrice))) {
-      newErrors.unitPrice = 'Valid price is required';
+      newErrors.unitPrice = t('items.price_required');
     } else if (parseFloat(form.unitPrice) < 0) {
-      newErrors.unitPrice = 'Price must be positive';
+      newErrors.unitPrice = t('items.price_positive');
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -87,7 +90,7 @@ export const CreateItemScreen = () => {
 
       if (result.didCancel) return;
       if (result.errorCode) {
-        Alert.alert('Error', result.errorMessage || 'Failed to pick image');
+        Alert.alert(t('common.error'), result.errorMessage || t('items.pick_image_failed'));
         return;
       }
       if (result.assets?.[0]) {
@@ -96,21 +99,19 @@ export const CreateItemScreen = () => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      Alert.alert(t('common.error'), t('items.pick_image_failed'));
     }
   };
 
   const handleImagePress = () => {
     if (Platform.OS === 'web') {
-      const choice = window.confirm(
-        'Click OK to use Camera, Cancel to pick from Gallery',
-      );
+      const choice = window.confirm(t('items.camera_gallery_hint'));
       pickImage(choice ? 'camera' : 'library');
     } else {
-      Alert.alert('Select Image', 'Choose an option', [
-        { text: 'Camera', onPress: () => pickImage('camera') },
-        { text: 'Gallery', onPress: () => pickImage('library') },
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('items.select_image'), t('items.choose_option'), [
+        { text: t('items.camera'), onPress: () => pickImage('camera') },
+        { text: t('items.gallery'), onPress: () => pickImage('library') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
@@ -135,12 +136,12 @@ export const CreateItemScreen = () => {
         }),
       ).unwrap();
 
-      Alert.alert('Success', 'Item created successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert(t('common.success'), t('items.item_created'), [
+        { text: t('common.ok'), onPress: () => navigation.goBack() },
       ]);
     } catch (error: any) {
       console.error('[CreateItemScreen] Error:', error);
-      Alert.alert('Error', error?.message || 'Failed to create item');
+      Alert.alert(t('common.error'), error?.message || t('items.create_failed'));
     } finally {
       setLoading(false);
     }
@@ -154,14 +155,14 @@ export const CreateItemScreen = () => {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Create New Item</Text>
+        <Text style={styles.headerTitle}>{t('items.create_item')}</Text>
         <Text style={styles.headerSubtitle}>
-          Add a new item to your inventory
+          {t('items.create_subtitle')}
         </Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Item Image</Text>
+        <Text style={styles.sectionTitle}>{t('items.item_image')}</Text>
         <View style={styles.imageContainer}>
           {imageUri ? (
             <View style={styles.imagePreviewContainer}>
@@ -176,7 +177,7 @@ export const CreateItemScreen = () => {
           ) : (
             <View style={styles.imagePlaceholder}>
               <Text style={styles.imagePlaceholderIcon}>📷</Text>
-              <Text style={styles.imagePlaceholderText}>No image</Text>
+              <Text style={styles.imagePlaceholderText}>{t('items.no_image')}</Text>
             </View>
           )}
           <TouchableOpacity
@@ -184,39 +185,39 @@ export const CreateItemScreen = () => {
             onPress={handleImagePress}
           >
             <Text style={styles.changeImageText}>
-              {imageUri ? '📸 Change Image' : '📸 Add Image'}
+              {imageUri ? t('items.change_image') : t('items.add_image')}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Basic Information</Text>
+        <Text style={styles.sectionTitle}>{t('items.basic_info')}</Text>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
-            Item Name <Text style={styles.required}>*</Text>
+            {t('items.item_name')} <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
             style={[styles.input, errors.name && styles.inputError]}
             value={form.name}
-            onChangeText={t => {
-              setForm({ ...form, name: t });
+            onChangeText={text => {
+              setForm({ ...form, name: text });
               if (errors.name) setErrors({ ...errors, name: undefined });
             }}
-            placeholder="e.g. Laptop, Coffee, Consulting"
+            placeholder={t('items.name_placeholder')}
             placeholderTextColor="#94A3B8"
           />
           {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{t('common.description')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={form.description}
-            onChangeText={t => setForm({ ...form, description: t })}
-            placeholder="Brief description of the item..."
+            onChangeText={text => setForm({ ...form, description: text })}
+            placeholder={t('items.description_placeholder')}
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={3}
@@ -225,20 +226,20 @@ export const CreateItemScreen = () => {
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>
-            Unit Price <Text style={styles.required}>*</Text>
+            {t('items.unit_price')} <Text style={styles.required}>*</Text>
           </Text>
           <View style={styles.priceInputContainer}>
             <Text style={styles.currencySymbol}>$</Text>
             <TextInput
               style={[styles.priceInput, errors.unitPrice && styles.inputError]}
               value={form.unitPrice}
-              onChangeText={t => {
-                setForm({ ...form, unitPrice: t });
+              onChangeText={text => {
+                setForm({ ...form, unitPrice: text });
                 if (errors.unitPrice)
                   setErrors({ ...errors, unitPrice: undefined });
               }}
               keyboardType="decimal-pad"
-              placeholder="0.00"
+              placeholder={t('items.price_placeholder')}
               placeholderTextColor="#94A3B8"
             />
           </View>
@@ -249,34 +250,34 @@ export const CreateItemScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Transaction Type</Text>
+        <Text style={styles.sectionTitle}>{t('items.transaction_type')}</Text>
         <View style={styles.typeContainer}>
-          {(['EXPENSE', 'INCOME'] as const).map(t => (
+          {(['EXPENSE', 'INCOME'] as const).map(type => (
             <TouchableOpacity
-              key={t}
-              onPress={() => setForm({ ...form, type: t })}
+              key={type}
+              onPress={() => setForm({ ...form, type })}
               style={[
                 styles.typeBtn,
-                form.type === t && styles.typeBtnActive,
-                form.type === t && t === 'INCOME' && styles.typeBtnActiveIncome,
-                form.type === t &&
-                  t === 'EXPENSE' &&
+                form.type === type && styles.typeBtnActive,
+                form.type === type && type === 'INCOME' && styles.typeBtnActiveIncome,
+                form.type === type &&
+                  type === 'EXPENSE' &&
                   styles.typeBtnActiveExpense,
               ]}
               activeOpacity={0.7}
             >
               <Text
-                style={[styles.typeIcon, form.type === t && { color: '#FFF' }]}
+                style={[styles.typeIcon, form.type === type && { color: '#FFF' }]}
               >
-                {t === 'INCOME' ? '↑' : '↓'}
+                {type === 'INCOME' ? '↑' : '↓'}
               </Text>
               <Text
                 style={[
                   styles.typeText,
-                  form.type === t && { color: '#FFF', fontWeight: '700' },
+                  form.type === type && { color: '#FFF', fontWeight: '700' },
                 ]}
               >
-                {t}
+                {translateTransactionType(t, type)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -284,10 +285,10 @@ export const CreateItemScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Additional Details</Text>
+        <Text style={styles.sectionTitle}>{t('items.additional_details')}</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>{t('transaction.category')}</Text>
           <CategoryPicker
             value={form.category}
             onChange={name => setForm({ ...form, category: name })}
@@ -295,7 +296,7 @@ export const CreateItemScreen = () => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Providers (Optional)</Text>
+          <Text style={styles.label}>{t('items.providers_optional')}</Text>
           <MultiProviderPicker
             value={providerIds}
             onChange={setProviderIds}
@@ -304,21 +305,21 @@ export const CreateItemScreen = () => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Unit</Text>
+          <Text style={styles.label}>{t('items.unit')}</Text>
           <TextInput
             style={styles.input}
             value={form.unit}
-            onChangeText={t => setForm({ ...form, unit: t })}
-            placeholder="e.g. kg, hr, box, pcs"
+            onChangeText={text => setForm({ ...form, unit: text })}
+            placeholder={t('items.unit_placeholder')}
             placeholderTextColor="#94A3B8"
           />
         </View>
 
         <View style={styles.switchContainer}>
           <View>
-            <Text style={styles.label}>Active Status</Text>
+            <Text style={styles.label}>{t('items.active_status')}</Text>
             <Text style={styles.switchSubtext}>
-              Item is available for transactions
+              {t('items.active_hint')}
             </Text>
           </View>
           <Switch
@@ -336,7 +337,7 @@ export const CreateItemScreen = () => {
           onPress={() => navigation.goBack()}
           disabled={loading}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -347,10 +348,10 @@ export const CreateItemScreen = () => {
           {loading ? (
             <View style={styles.loadingButtonContent}>
               <ActivityIndicator size="small" color="#FFF" />
-              <Text style={styles.saveText}>Creating...</Text>
+              <Text style={styles.saveText}>{t('items.creating')}</Text>
             </View>
           ) : (
-            <Text style={styles.saveText}>Create Item</Text>
+            <Text style={styles.saveText}>{t('items.create_item_btn')}</Text>
           )}
         </TouchableOpacity>
       </View>

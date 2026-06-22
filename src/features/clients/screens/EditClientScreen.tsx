@@ -12,9 +12,11 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { clientService } from '../api/clientService';
 import { theme } from '../../../theme';
+import { useTranslation } from 'react-i18next';
 
 export const EditClientScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const clientId = route.params?.clientId as number;
   const [loading, setLoading] = useState(false);
@@ -40,7 +42,7 @@ export const EditClientScreen = () => {
         });
       })
       .catch(() => {
-        Alert.alert('Error', 'Failed to load client.');
+        Alert.alert(t('common.error'), 'Failed to load client.');
         navigation.goBack();
       })
       .finally(() => setFetching(false));
@@ -48,17 +50,17 @@ export const EditClientScreen = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert('Error', 'Name is required');
+      Alert.alert(t('common.error'), 'Name is required');
       return;
     }
 
     setLoading(true);
     try {
       await clientService.update(clientId, form);
-      Alert.alert('Success', 'Client updated.');
+      Alert.alert(t('common.success'), 'Client updated.');
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Check your backend connection');
+      Alert.alert(t('common.error'), error.message || 'Check your backend connection');
     } finally {
       setLoading(false);
     }
@@ -76,40 +78,40 @@ export const EditClientScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.label}>Name *</Text>
+      <Text style={styles.label}>{t('common.name')}</Text>
       <TextInput
         style={styles.input}
         value={form.name}
-        onChangeText={t => setForm({ ...form, name: t })}
+        onChangeText={text => setForm({ ...form, name: text })}
       />
 
-      <Text style={styles.label}>Company</Text>
+      <Text style={styles.label}>{t('common.company')}</Text>
       <TextInput
         style={styles.input}
         value={form.company}
-        onChangeText={t => setForm({ ...form, company: t })}
+        onChangeText={text => setForm({ ...form, company: text })}
       />
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>{t('common.description')}</Text>
       <TextInput
         style={styles.input}
         value={form.description}
-        onChangeText={t => setForm({ ...form, description: t })}
+        onChangeText={text => setForm({ ...form, description: text })}
         multiline
       />
 
-      <Text style={styles.label}>City</Text>
+      <Text style={styles.label}>{t('common.city')}</Text>
       <TextInput
         style={styles.input}
         value={form.city}
-        onChangeText={t => setForm({ ...form, city: t })}
+        onChangeText={text => setForm({ ...form, city: text })}
       />
 
-      <Text style={styles.label}>Address</Text>
+      <Text style={styles.label}>{t('common.address')}</Text>
       <TextInput
         style={styles.input}
         value={form.address}
-        onChangeText={t => setForm({ ...form, address: t })}
+        onChangeText={text => setForm({ ...form, address: text })}
         multiline
       />
 
@@ -117,7 +119,7 @@ export const EditClientScreen = () => {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveText}>Save Changes</Text>
+          <Text style={styles.saveText}>{t('common.save')}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

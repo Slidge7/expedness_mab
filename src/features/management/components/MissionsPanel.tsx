@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { missionService, MissionDTO } from '../../missions/api/missionService';
 import { theme } from '../../../theme';
 import { managementStyles as s } from '../styles/managementStyles';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   isActive: boolean;
@@ -19,6 +20,7 @@ interface Props {
 
 export const MissionsPanel: React.FC<Props> = ({ isActive }) => {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const [items, setItems] = useState<MissionDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +29,7 @@ export const MissionsPanel: React.FC<Props> = ({ isActive }) => {
     try {
       setItems(await missionService.getAll());
     } catch {
-      Alert.alert('Error', 'Failed to load missions.');
+      Alert.alert(t('common.error'), 'Failed to load missions.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,7 +93,7 @@ export const MissionsPanel: React.FC<Props> = ({ isActive }) => {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text style={s.emptyText}>No missions yet. Create your first one.</Text>
+          <Text style={s.emptyText}>{t('management.no_missions')}</Text>
         }
       />
       <TouchableOpacity

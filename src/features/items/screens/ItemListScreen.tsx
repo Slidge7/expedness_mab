@@ -16,6 +16,8 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchItems } from '../../../store/itemSlice';
 import { theme } from '../../../theme';
 import { ItemDTO, TransactionType } from '../api/itemService';
+import { useTranslation } from 'react-i18next';
+import { translateTransactionType } from '../../../i18n/helpers';
 import { CollapsibleItemForm } from '../components/CollapsibleItemForm';
 import { DEFAULT_ITEM_CATEGORY } from '../constants';
 
@@ -23,29 +25,44 @@ const { width } = Dimensions.get('window');
 
 type ViewMode = 'list' | 'grid';
 
-export const ItemListScreen = () => {
+interface ItemListScreenProps {
+  fixedType?: 'INCOME' | 'EXPENSE';
+  isActive?: boolean;
+}
+
+export const ItemListScreen = ({
+  fixedType,
+  isActive = true,
+}: ItemListScreenProps = {}) => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const { items, loading } = useAppSelector(state => state.items);
+
+  const formatCategory = (category?: string) => {
+    if (!category || category === DEFAULT_ITEM_CATEGORY) return t('items.other');
+    return category;
+  };
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>(
-    'ALL',
+    fixedType ?? 'ALL',
   );
   const [refreshing, setRefreshing] = useState(false);
   const [formExpanded, setFormExpanded] = useState(false);
   const [editingItem, setEditingItem] = useState<ItemDTO | null>(null);
 
   const resolveCreateItemType = (): TransactionType => {
+    if (fixedType) return fixedType;
     if (filterType === 'INCOME') return 'INCOME';
     if (filterType === 'EXPENSE') return 'EXPENSE';
     return 'EXPENSE';
   };
 
   useEffect(() => {
-    dispatch(fetchItems());
-  }, [dispatch]);
+    if (isActive) dispatch(fetchItems());
+  }, [dispatch, isActive]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -57,7 +74,8 @@ export const ItemListScreen = () => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === 'ALL' || item.type === filterType;
+    const effectiveType = fixedType ?? filterType;
+    const matchesType = effectiveType === 'ALL' || item.type === effectiveType;
     return matchesSearch && matchesType;
   });
 
@@ -134,13 +152,13 @@ export const ItemListScreen = () => {
                   { color: item.type === 'INCOME' ? '#065F46' : '#991B1B' },
                 ]}
               >
-                {item.type}
+                {translateTransactionType(t, item.type)}
               </Text>
             </View>
           </View>
 
           <Text style={styles.listCategory} numberOfLines={1}>
-            {item.category || DEFAULT_ITEM_CATEGORY}{' '}
+            {formatCategory(item.category)}{' '}
             {item.unit ? `• ${item.unit}` : ''}
           </Text>
 
@@ -150,13 +168,13 @@ export const ItemListScreen = () => {
               {item.stockEnabled && (
                 <View style={styles.stockBadge}>
                   <Text style={styles.stockBadgeText}>
-                    {item.currentStock ?? 0} in stock
+                    {t('items.in_stock', { count: item.currentStock ?? 0 })}
                   </Text>
                 </View>
               )}
               {!item.active && (
                 <View style={styles.inactiveBadge}>
-                  <Text style={styles.inactiveBadgeText}>Inactive</Text>
+                  <Text style={styles.inactiveBadgeText}>{t('items.inactive')}</Text>
                 </View>
               )}
             </View>
@@ -215,13 +233,13 @@ export const ItemListScreen = () => {
           {item.name}
         </Text>
         <Text style={styles.gridCategory} numberOfLines={1}>
-          {item.category || DEFAULT_ITEM_CATEGORY}
+          {formatCategory(item.category)}
         </Text>
         <Text style={styles.gridPrice}>${item.unitPrice?.toFixed(2)}</Text>
 
         {!item.active && (
           <View style={styles.gridInactiveBadge}>
-            <Text style={styles.inactiveBadgeText}>Inactive</Text>
+            <Text style={styles.inactiveBadgeText}>{t('items.inactive')}</Text>
           </View>
         )}
       </View>
@@ -237,7 +255,7 @@ export const ItemListScreen = () => {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search items..."
+            placeholder={t('items.search_placeholder')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#94A3B8"
@@ -251,31 +269,31 @@ export const ItemListScreen = () => {
 
         {/* Filter & View Toggle */}
         <View style={styles.controlRow}>
-          {/* Type Filter */}
-          <View style={styles.filterButtons}>
-            {(['ALL', 'INCOME', 'EXPENSE'] as const).map(type => (
-              <TouchableOpacity
-                key={type}
-                onPress={() => setFilterType(type)}
-                style={[
-                  styles.filterBtn,
-                  filterType === type && styles.filterBtnActive,
-                ]}
-              >
-                <Text
+          {!fixedType && (
+            <View style={styles.filterButtons}>
+              {(['ALL', 'INCOME', 'EXPENSE'] as const).map(type => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setFilterType(type)}
                   style={[
-                    styles.filterBtnText,
-                    filterType === type && styles.filterBtnTextActive,
+                    styles.filterBtn,
+                    filterType === type && styles.filterBtnActive,
                   ]}
                 >
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Text
+                    style={[
+                      styles.filterBtnText,
+                      filterType === type && styles.filterBtnTextActive,
+                    ]}
+                  >
+                    {translateTransactionType(t, type)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
-          {/* View Toggle */}
-          <View style={styles.viewToggle}>
+          <View style={[styles.viewToggle, fixedType && styles.viewToggleEnd]}>
             <TouchableOpacity
               onPress={() => setViewMode('list')}
               style={[
@@ -321,11 +339,11 @@ export const ItemListScreen = () => {
       ) : filteredItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📦</Text>
-          <Text style={styles.emptyText}>No items found</Text>
+          <Text style={styles.emptyText}>{t('items.no_items_found')}</Text>
           <Text style={styles.emptySubtext}>
             {searchQuery
-              ? 'Try adjusting your search'
-              : 'Create your first item to get started'}
+              ? t('items.adjust_search')
+              : t('items.create_first')}
           </Text>
         </View>
       ) : (
@@ -419,6 +437,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 8,
     padding: 2,
+  },
+  viewToggleEnd: {
+    marginLeft: 'auto',
   },
   viewToggleBtn: {
     padding: 6,

@@ -21,7 +21,8 @@ import { theme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { CategoryPicker } from '../../transactions/components/CategoryPicker';
 import { ItemDTO, TransactionType } from '../api/itemService';
-import { DEFAULT_ITEM_CATEGORY } from '../constants';
+import { useTranslation } from 'react-i18next';
+import { translateTransactionType } from '../../../i18n/helpers';
 
 interface ItemFormPanelProps {
   itemType: TransactionType;
@@ -37,6 +38,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
   onCancel,
 }) => {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const isEdit = !!editItem?.id;
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
     name: '',
     description: '',
     unitPrice: '',
-    category: DEFAULT_ITEM_CATEGORY,
+    category: '',
     unit: 'pcs',
   });
 
@@ -63,7 +65,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
         name: editItem.name,
         description: editItem.description || '',
         unitPrice: editItem.unitPrice.toString(),
-        category: editItem.category || DEFAULT_ITEM_CATEGORY,
+        category: editItem.category || '',
         unit: editItem.unit || 'pcs',
       });
       if (editItem.imageMedium) {
@@ -80,7 +82,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
         name: '',
         description: '',
         unitPrice: '',
-        category: DEFAULT_ITEM_CATEGORY,
+        category: '',
         unit: 'pcs',
       });
       setImageUri(null);
@@ -94,12 +96,12 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
   const validateForm = () => {
     const newErrors: typeof errors = {};
     if (!form.name.trim()) {
-      newErrors.name = 'Item name is required';
+      newErrors.name = t('items.name_required');
     }
     if (!form.unitPrice || isNaN(parseFloat(form.unitPrice))) {
-      newErrors.unitPrice = 'Valid price is required';
+      newErrors.unitPrice = t('items.price_required');
     } else if (parseFloat(form.unitPrice) < 0) {
-      newErrors.unitPrice = 'Price must be positive';
+      newErrors.unitPrice = t('items.price_positive');
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -121,7 +123,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
 
       if (result.didCancel) return;
       if (result.errorCode) {
-        Alert.alert('Error', result.errorMessage || 'Failed to pick image');
+        Alert.alert(t('common.error'), result.errorMessage || t('items.pick_image_failed'));
         return;
       }
       if (result.assets?.[0]) {
@@ -131,21 +133,19 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      Alert.alert(t('common.error'), t('items.pick_image_failed'));
     }
   };
 
   const handleImagePress = () => {
     if (Platform.OS === 'web') {
-      const choice = window.confirm(
-        'Click OK to use Camera, Cancel to pick from Gallery',
-      );
+      const choice = window.confirm(t('items.camera_gallery_hint'));
       pickImage(choice ? 'camera' : 'library');
     } else {
-      Alert.alert('Select Image', 'Choose an option', [
-        { text: 'Camera', onPress: () => pickImage('camera') },
-        { text: 'Gallery', onPress: () => pickImage('library') },
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('items.select_image'), t('items.choose_option'), [
+        { text: t('items.camera'), onPress: () => pickImage('camera') },
+        { text: t('items.gallery'), onPress: () => pickImage('library') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
@@ -154,15 +154,15 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
     if (isEdit && hasExistingImage && !imageChanged && editItem?.id) {
       const confirmed =
         Platform.OS === 'web'
-          ? window.confirm('Are you sure you want to remove this image?')
+          ? window.confirm(t('items.remove_image_confirm'))
           : await new Promise<boolean>(resolve => {
               Alert.alert(
-                'Remove Image',
-                'Are you sure you want to remove this image?',
+                t('items.remove_image'),
+                t('items.remove_image_confirm'),
                 [
-                  { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                  { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
                   {
-                    text: 'Remove',
+                    text: t('items.remove'),
                     style: 'destructive',
                     onPress: () => resolve(true),
                   },
@@ -177,7 +177,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
         setImageUri(null);
         setHasExistingImage(false);
       } catch {
-        Alert.alert('Error', 'Failed to remove image');
+        Alert.alert(t('common.error'), t('items.remove_image_failed'));
       }
     } else {
       setImageUri(null);
@@ -193,12 +193,11 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const category = form.category.trim() || DEFAULT_ITEM_CATEGORY;
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       unitPrice: parseFloat(form.unitPrice),
-      category,
+      category: form.category.trim() || undefined,
       type: itemType,
       unit: form.unit.trim() || undefined,
       active: editItem?.active ?? true,
@@ -232,8 +231,9 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
       onSaved();
     } catch (error: any) {
       Alert.alert(
-        'Error',
-        error?.message || `Failed to ${isEdit ? 'update' : 'create'} item`,
+        t('common.error'),
+        error?.message ||
+          (isEdit ? t('items.update_failed') : t('items.create_failed')),
       );
     } finally {
       setLoading(false);
@@ -242,16 +242,18 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
 
   const typeColor = itemType === 'INCOME' ? '#10B981' : '#EF4444';
 
+  const typeLabel = translateTransactionType(t, itemType);
+
   return (
     <View style={styles.container}>
       <View style={styles.typeRow}>
         <View style={[styles.typeBadge, { backgroundColor: typeColor }]}>
           <Text style={styles.typeBadgeText}>
-            {itemType === 'INCOME' ? '↑ Income' : '↓ Expense'}
+            {itemType === 'INCOME' ? `↑ ${typeLabel}` : `↓ ${typeLabel}`}
           </Text>
         </View>
         <Text style={styles.typeHint}>
-          {isEdit ? 'Item type' : 'Set from list filter'}
+          {isEdit ? t('items.item_type') : t('items.set_from_filter')}
         </Text>
       </View>
 
@@ -264,7 +266,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
               ) : (
                 <View style={styles.imagePlaceholder}>
                   <Text style={styles.imagePlaceholderIcon}>📷</Text>
-                  <Text style={styles.imagePlaceholderText}>Add image</Text>
+                  <Text style={styles.imagePlaceholderText}>{t('items.add_image')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -281,16 +283,16 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
           <View style={styles.titlePriceColumn}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Title <Text style={styles.required}>*</Text>
+                {t('items.title')} <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
                 style={[styles.input, errors.name && styles.inputError]}
                 value={form.name}
-                onChangeText={t => {
-                  setForm({ ...form, name: t });
+                onChangeText={text => {
+                  setForm({ ...form, name: text });
                   if (errors.name) setErrors({ ...errors, name: undefined });
                 }}
-                placeholder="Item name"
+                placeholder={t('items.item_name')}
                 placeholderTextColor="#94A3B8"
               />
               {errors.name && (
@@ -300,7 +302,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Price <Text style={styles.required}>*</Text>
+                {t('items.price')} <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.priceInputContainer}>
                 <Text style={styles.currencySymbol}>$</Text>
@@ -310,13 +312,13 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
                     errors.unitPrice && styles.inputError,
                   ]}
                   value={form.unitPrice}
-                  onChangeText={t => {
-                    setForm({ ...form, unitPrice: t });
+                  onChangeText={text => {
+                    setForm({ ...form, unitPrice: text });
                     if (errors.unitPrice)
                       setErrors({ ...errors, unitPrice: undefined });
                   }}
                   keyboardType="decimal-pad"
-                  placeholder="0.00"
+                  placeholder={t('items.price_placeholder')}
                   placeholderTextColor="#94A3B8"
                 />
               </View>
@@ -330,23 +332,20 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
 
       <View style={styles.section}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>{t('transaction.category_optional')}</Text>
           <CategoryPicker
             value={form.category}
-            onChange={name =>
-              setForm({ ...form, category: name || DEFAULT_ITEM_CATEGORY })
-            }
-            required
+            onChange={name => setForm({ ...form, category: name })}
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{t('common.description')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={form.description}
-            onChangeText={t => setForm({ ...form, description: t })}
-            placeholder="Brief description..."
+            onChangeText={text => setForm({ ...form, description: text })}
+            placeholder={t('items.brief_description')}
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={3}
@@ -354,12 +353,12 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
         </View>
 
         <View style={[styles.inputGroup, styles.inputGroupLast]}>
-          <Text style={styles.label}>Unit</Text>
+          <Text style={styles.label}>{t('items.unit')}</Text>
           <TextInput
             style={styles.input}
             value={form.unit}
-            onChangeText={t => setForm({ ...form, unit: t })}
-            placeholder="e.g. kg, hr, box, pcs"
+            onChangeText={text => setForm({ ...form, unit: text })}
+            placeholder={t('items.unit_placeholder')}
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -371,7 +370,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
           onPress={onCancel}
           disabled={loading}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -383,12 +382,12 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
             <View style={styles.loadingButtonContent}>
               <ActivityIndicator size="small" color="#FFF" />
               <Text style={styles.saveText}>
-                {isEdit ? 'Saving...' : 'Creating...'}
+                {isEdit ? t('transaction.saving') : t('items.creating')}
               </Text>
             </View>
           ) : (
             <Text style={styles.saveText}>
-              {isEdit ? 'Save Changes' : 'Create Item'}
+              {isEdit ? t('transaction.save_changes') : t('items.create_item_btn')}
             </Text>
           )}
         </TouchableOpacity>

@@ -17,10 +17,13 @@ import { missionService } from '../missionService';
 import { OptionalClientPicker } from '../../../transactions/components/OptionalClientPicker';
 import { OptionalProviderPicker } from '../../../transactions/components/OptionalProviderPicker';
 import { theme } from '../../../../theme';
+import { useTranslation } from 'react-i18next';
+import { translateMissionStatus } from '../../../../i18n/helpers';
 
 export const CreateMissionScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -37,7 +40,7 @@ export const CreateMissionScreen = () => {
 
   const handleSave = async () => {
     if (!form.title.trim()) {
-      Alert.alert('Error', 'Title is required');
+      Alert.alert(t('common.error'), t('missions.title_required'));
       return;
     }
 
@@ -50,10 +53,13 @@ export const CreateMissionScreen = () => {
         clientId: form.clientId ?? undefined,
         providerId: form.providerId ?? undefined,
       });
-      Alert.alert('Success', 'Mission created successfully!');
+      Alert.alert(t('common.success'), t('missions.created'));
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Check your backend connection');
+      Alert.alert(
+        t('missions.save_failed'),
+        error.message || t('missions.check_backend'),
+      );
     } finally {
       setLoading(false);
     }
@@ -61,24 +67,24 @@ export const CreateMissionScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.label}>Title *</Text>
+      <Text style={styles.label}>{t('missions.title_label')}</Text>
       <TextInput
         style={styles.input}
         value={form.title}
-        onChangeText={t => setForm({ ...form, title: t })}
-        placeholder="Mission title"
+        onChangeText={text => setForm({ ...form, title: text })}
+        placeholder={t('missions.title_placeholder')}
       />
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>{t('common.description')}</Text>
       <TextInput
         style={styles.input}
         value={form.description}
-        onChangeText={t => setForm({ ...form, description: t })}
-        placeholder="Optional description"
+        onChangeText={text => setForm({ ...form, description: text })}
+        placeholder={t('missions.description_placeholder')}
         multiline
       />
 
-      <Text style={styles.label}>Status</Text>
+      <Text style={styles.label}>{t('missions.status')}</Text>
       <View style={styles.row}>
         {(['PENDING', 'IN_PROGRESS', 'COMPLETED'] as const).map(s => (
           <TouchableOpacity
@@ -92,19 +98,19 @@ export const CreateMissionScreen = () => {
                 form.status === s && styles.statusTextActive,
               ]}
             >
-              {s.replace('_', ' ')}
+              {translateMissionStatus(t, s)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.label}>Client (Optional)</Text>
+      <Text style={styles.label}>{t('locations.client_optional')}</Text>
       <OptionalClientPicker
         value={form.clientId}
         onChange={(clientId: number | null) => setForm({ ...form, clientId })}
       />
 
-      <Text style={styles.label}>Provider (Optional)</Text>
+      <Text style={styles.label}>{t('locations.provider_optional')}</Text>
       <OptionalProviderPicker
         value={form.providerId}
         onChange={(providerId: number | null) =>
@@ -116,12 +122,12 @@ export const CreateMissionScreen = () => {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveText}>Save Mission</Text>
+          <Text style={styles.saveText}>{t('missions.save_mission')}</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancel</Text>
+        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

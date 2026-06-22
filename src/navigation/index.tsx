@@ -3,6 +3,8 @@ import { Platform, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 // Screens
 import { LoginScreen } from '../features/auth/screens/LoginScreen';
@@ -11,13 +13,13 @@ import { DashboardScreen } from '../features/dashboard/screens/DashboardScreen';
 import { CreateLocationScreen } from '../features/locations/screens/CreateLocationScreen';
 import { LocationDetailScreen } from '../features/locations/screens/LocationDetailScreen';
 import { EditLocationScreen } from '../features/locations/screens/EditLocationScreen';
-import { TransactionListScreen } from '../features/transactions/screens/TransactionListScreen';
 import { CreateTransactionScreen } from '../features/transactions/screens/CreateTransactionScreen';
 import { CreateMissionScreen } from '../features/missions/api/screens/CreateMissionScreen';
 import { MissionDetailScreen } from '../features/missions/api/screens/MissionDetailScreen';
 import { EditMissionScreen } from '../features/missions/api/screens/EditMissionScreen';
 import { ManagementScreen } from '../features/management/screens/ManagementScreen';
-import { ItemListScreen } from '../features/items/screens/ItemListScreen';
+import { IncomeScreen } from '../features/income/screens/IncomeScreen';
+import { ExpenseScreen } from '../features/expense/screens/ExpenseScreen';
 import { CreateItemScreen } from '../features/items/screens/CreateItemScreen';
 import { EditItemScreen } from '../features/items/screens/EditItemScreen';
 import { ItemDetailScreen } from '../features/items/screens/ItemDetailScreen';
@@ -58,66 +60,84 @@ const WebBackButton = () => {
 // Shared header options for screens with back button
 const headerWithBack = {
   headerShown: true,
-  headerStyle: { backgroundColor: theme.colors.primary },
-  headerTitleStyle: { color: '#fff' },
-  headerTintColor: '#fff',
+  headerStyle: { backgroundColor: theme.colors.surface },
+  headerTitleStyle: { color: theme.colors.text, fontWeight: '700' as const, fontSize: 18 },
+  headerTintColor: theme.colors.primary,
+  headerShadowVisible: false,
   headerLeft: () => <WebBackButton />,
 };
 
-const MainTabs = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarActiveTintColor: theme.colors.primary,
-      tabBarInactiveTintColor: 'gray',
-      headerStyle: { backgroundColor: theme.colors.primary },
-      headerTitleStyle: { color: '#fff' },
-      tabBarIcon: ({ focused, color, size }) => {
-        let iconName;
-        if (route.name === 'Dashboard') {
-          iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'Manage') {
-          iconName = focused ? 'briefcase' : 'briefcase-outline';
-        } else if (route.name === 'Transactions') {
-          iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
-        } else if (route.name === 'Items') {
-          iconName = focused ? 'cube' : 'cube-outline';
-        } else if (route.name === 'Profile') {
-          iconName = focused ? 'person' : 'person-outline';
-        }
-        return <Ionicons name={iconName} size={size} color={color} />;
-      },
-    })}
-  >
-    <Tab.Screen
-      name="Dashboard"
-      component={DashboardScreen}
-      options={{ title: 'Home' }}
-    />
-    <Tab.Screen
-      name="Manage"
-      component={ManagementScreen}
-      options={{ title: 'Manage' }}
-    />
-    <Tab.Screen
-      name="Transactions"
-      component={TransactionListScreen}
-      options={{ title: 'Transactions' }}
-    />
-    <Tab.Screen
-      name="Items"
-      component={ItemListScreen}
-      options={{ title: 'Items' }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ title: 'Settings', headerShown: false }}
-    />
-  </Tab.Navigator>
-);
+const MainTabs = () => {
+  const { t } = useTranslation();
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.border,
+          paddingBottom: Platform.OS === 'web' ? 0 : 8,
+          height: Platform.OS === 'web' ? 60 : 68,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        headerStyle: { 
+          backgroundColor: theme.colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+        },
+        headerTitleStyle: { color: theme.colors.text, fontWeight: '700', fontSize: 20 },
+        headerShadowVisible: false,
+        headerRight: () => <LanguageSwitcher />,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Income') {
+            iconName = focused ? 'arrow-up-circle' : 'arrow-up-circle-outline';
+          } else if (route.name === 'Expense') {
+            iconName = focused ? 'arrow-down-circle' : 'arrow-down-circle-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          return <Ionicons name={iconName} size={size + 4} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{ title: t('nav.dashboard') }}
+      />
+      <Tab.Screen
+        name="Income"
+        component={IncomeScreen}
+        options={{ title: t('nav.income') }}
+      />
+      <Tab.Screen
+        name="Expense"
+        component={ExpenseScreen}
+        options={{ title: t('nav.expense') }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: t('nav.settings'), headerShown: false }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 export const AppNavigator = () => {
   const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  const { t } = useTranslation();
 
   return (
     <NavigationContainer>
@@ -127,18 +147,23 @@ export const AppNavigator = () => {
             <Stack.Screen name="Main" component={MainTabs} />
 
             <Stack.Screen
+              name="Management"
+              component={ManagementScreen}
+              options={{ ...headerWithBack, title: t('nav.manage') }}
+            />
+            <Stack.Screen
               name="CreateLocation"
               component={CreateLocationScreen}
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'New Location',
+                title: t('nav.new_location'),
               }}
             />
             <Stack.Screen
               name="LocationDetail"
               component={LocationDetailScreen}
-              options={{ ...headerWithBack, title: 'Location Details' }}
+              options={{ ...headerWithBack, title: t('nav.location_details') }}
             />
             <Stack.Screen
               name="EditLocation"
@@ -146,7 +171,7 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'Edit Location',
+                title: t('nav.edit_location'),
               }}
             />
             <Stack.Screen
@@ -155,7 +180,7 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'New Transaction',
+                title: t('nav.new_transaction'),
               }}
             />
             <Stack.Screen
@@ -164,13 +189,13 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'New Item',
+                title: t('nav.new_item'),
               }}
             />
             <Stack.Screen
               name="ItemDetail"
               component={ItemDetailScreen}
-              options={{ ...headerWithBack, title: 'Item Details' }}
+              options={{ ...headerWithBack, title: t('nav.item_details') }}
             />
             <Stack.Screen
               name="EditItem"
@@ -178,18 +203,18 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'Edit Item',
+                title: t('nav.edit_item'),
               }}
             />
             <Stack.Screen
               name="TransactionDetail"
               component={TransactionDetailScreen}
-              options={{ ...headerWithBack, title: 'Transaction Details' }}
+              options={{ ...headerWithBack, title: t('nav.transaction_details') }}
             />
             <Stack.Screen
               name="EditTransaction"
               component={EditTransactionScreen}
-              options={{ ...headerWithBack, title: 'Edit Transaction' }}
+              options={{ ...headerWithBack, title: t('nav.edit_transaction') }}
             />
             <Stack.Screen
               name="CreateClient"
@@ -197,13 +222,13 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'New Client',
+                title: t('nav.new_client'),
               }}
             />
             <Stack.Screen
               name="ClientDetail"
               component={ClientDetailScreen}
-              options={{ ...headerWithBack, title: 'Client Details' }}
+              options={{ ...headerWithBack, title: t('nav.client_details') }}
             />
             <Stack.Screen
               name="EditClient"
@@ -211,7 +236,7 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'Edit Client',
+                title: t('nav.edit_client'),
               }}
             />
             <Stack.Screen
@@ -220,13 +245,13 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'New Provider',
+                title: t('nav.new_provider'),
               }}
             />
             <Stack.Screen
               name="ProviderDetail"
               component={ProviderDetailScreen}
-              options={{ ...headerWithBack, title: 'Provider Details' }}
+              options={{ ...headerWithBack, title: t('nav.provider_details') }}
             />
             <Stack.Screen
               name="EditProvider"
@@ -234,7 +259,7 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'Edit Provider',
+                title: t('nav.edit_provider'),
               }}
             />
             <Stack.Screen
@@ -243,13 +268,13 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'New Mission',
+                title: t('nav.new_mission'),
               }}
             />
             <Stack.Screen
               name="MissionDetail"
               component={MissionDetailScreen}
-              options={{ ...headerWithBack, title: 'Mission Details' }}
+              options={{ ...headerWithBack, title: t('nav.mission_details') }}
             />
             <Stack.Screen
               name="EditMission"
@@ -257,18 +282,18 @@ export const AppNavigator = () => {
               options={{
                 ...headerWithBack,
                 presentation: 'modal',
-                title: 'Edit Mission',
+                title: t('nav.edit_mission'),
               }}
             />
             <Stack.Screen
               name="StockList"
               component={StockListScreen}
-              options={{ ...headerWithBack, title: 'Stock' }}
+              options={{ ...headerWithBack, title: t('nav.stock') }}
             />
             <Stack.Screen
               name="ItemStockDetail"
               component={ItemStockDetailScreen}
-              options={{ ...headerWithBack, title: 'Item Stock' }}
+              options={{ ...headerWithBack, title: t('nav.item_stock') }}
             />
           </Stack.Group>
         ) : (
