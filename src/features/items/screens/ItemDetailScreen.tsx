@@ -17,12 +17,26 @@ import {
   clearSelectedItem,
 } from '../../../store/itemSlice';
 import { enableStock, disableStock } from '../../../store/stockSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 import { translateTransactionType } from '../../../i18n/helpers';
 import { DEFAULT_ITEM_CATEGORY } from '../constants';
+import { getItemPreviewUri } from '../utils/itemImageUtils';
 
 export const ItemDetailScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
+  const DetailRow = ({ icon, label, value, multiline, valueStyle }: { icon: string; label: string; value: string; multiline?: boolean; valueStyle?: any }) => (
+    <View style={[styles.detailRow, multiline && styles.detailRowMultiline]}>
+      <View style={styles.detailLabel}>
+        <Text style={styles.detailIcon}>{icon}</Text>
+        <Text style={styles.detailLabelText}>{label}</Text>
+      </View>
+      <Text style={[styles.detailValue, valueStyle]} numberOfLines={multiline ? undefined : 1}>{value}</Text>
+    </View>
+  );
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -151,17 +165,16 @@ export const ItemDetailScreen = () => {
   };
 
   const typeLabel = translateTransactionType(t, selectedItem.type);
+  const previewUri = getItemPreviewUri(selectedItem);
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Section */}
         <View style={styles.imageSection}>
-          {selectedItem.imageMedium ? (
+          {previewUri ? (
             <Image
-              source={{
-                uri: `data:image/jpeg;base64,${selectedItem.imageMedium}`,
-              }}
+              source={{ uri: previewUri }}
               style={styles.itemImage}
               resizeMode="cover"
             />
@@ -216,6 +229,20 @@ export const ItemDetailScreen = () => {
             label={t('transaction.category')}
             value={formatCategory(selectedItem.category)}
           />
+
+          <DetailRow
+            icon="🏷️"
+            label={t('items.marque')}
+            value={selectedItem.marqueTitle || t('items.no_marque')}
+          />
+
+          {selectedItem.tags && selectedItem.tags.length > 0 && (
+            <DetailRow
+              icon="🔖"
+              label={t('items.tags')}
+              value={selectedItem.tags.join(', ')}
+            />
+          )}
 
           {selectedItem.description && (
             <DetailRow
@@ -353,35 +380,7 @@ export const ItemDetailScreen = () => {
   );
 };
 
-// Helper Component
-const DetailRow = ({
-  icon,
-  label,
-  value,
-  multiline,
-  valueStyle,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  multiline?: boolean;
-  valueStyle?: any;
-}) => (
-  <View style={[styles.detailRow, multiline && styles.detailRowMultiline]}>
-    <View style={styles.detailLabel}>
-      <Text style={styles.detailIcon}>{icon}</Text>
-      <Text style={styles.detailLabelText}>{label}</Text>
-    </View>
-    <Text
-      style={[styles.detailValue, valueStyle]}
-      numberOfLines={multiline ? undefined : 1}
-    >
-      {value}
-    </Text>
-  </View>
-);
-
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',

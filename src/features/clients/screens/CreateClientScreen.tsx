@@ -9,12 +9,15 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { clientService } from '../api/clientService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
 import { useTranslation } from 'react-i18next';
 
 export const CreateClientScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -28,14 +31,14 @@ export const CreateClientScreen = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert(t('common.error'), 'Name is required');
+      Alert.alert(t('common.error'), t('clients.name_required'));
       return;
     }
 
     setLoading(true);
     try {
       await clientService.create(form);
-      Alert.alert(t('common.success'), 'Client created successfully!');
+      Alert.alert(t('common.success'), t('clients.create_success'));
       navigation.goBack();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || 'Check your backend connection');
@@ -52,7 +55,7 @@ export const CreateClientScreen = () => {
           style={styles.input}
           value={form.name}
           onChangeText={text => setForm({ ...form, name: text })}
-          placeholder="Client name"
+          placeholder={t('clients.name_placeholder')}
           placeholderTextColor={theme.colors.textSecondary}
         />
 
@@ -61,7 +64,7 @@ export const CreateClientScreen = () => {
           style={styles.input}
           value={form.company}
           onChangeText={text => setForm({ ...form, company: text })}
-          placeholder="Legal or display name"
+          placeholder={t('clients.display_name_placeholder')}
           placeholderTextColor={theme.colors.textSecondary}
         />
 
@@ -70,7 +73,7 @@ export const CreateClientScreen = () => {
           style={[styles.input, styles.textArea]}
           value={form.description}
           onChangeText={text => setForm({ ...form, description: text })}
-          placeholder="Optional notes"
+          placeholder={t('clients.notes_placeholder')}
           placeholderTextColor={theme.colors.textSecondary}
           multiline
         />
@@ -80,7 +83,7 @@ export const CreateClientScreen = () => {
           style={styles.input}
           value={form.city}
           onChangeText={text => setForm({ ...form, city: text })}
-          placeholder="City"
+          placeholder={t('clients.city_placeholder')}
           placeholderTextColor={theme.colors.textSecondary}
         />
 
@@ -89,7 +92,7 @@ export const CreateClientScreen = () => {
           style={[styles.input, styles.textArea]}
           value={form.address}
           onChangeText={text => setForm({ ...form, address: text })}
-          placeholder="Street address"
+          placeholder={t('clients.address_placeholder')}
           placeholderTextColor={theme.colors.textSecondary}
           multiline
         />
@@ -112,7 +115,7 @@ export const CreateClientScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   content: { padding: theme.spacing.l, maxWidth: 600, alignSelf: 'center', width: '100%' },
   label: {
@@ -143,3 +146,4 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
 });
+

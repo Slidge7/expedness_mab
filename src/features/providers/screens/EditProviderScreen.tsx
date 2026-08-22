@@ -11,10 +11,13 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { providerService } from '../api/providerService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 export const EditProviderScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const { t } = useTranslation();
   const route = useRoute<any>();
@@ -42,7 +45,7 @@ export const EditProviderScreen = () => {
         });
       })
       .catch(() => {
-        Alert.alert(t('common.error'), 'Failed to load provider.');
+        Alert.alert(t('common.error'), t('providers.load_error'));
         navigation.goBack();
       })
       .finally(() => setFetching(false));
@@ -50,14 +53,14 @@ export const EditProviderScreen = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert(t('common.error'), 'Name is required');
+      Alert.alert(t('common.error'), t('providers.name_required'));
       return;
     }
 
     setLoading(true);
     try {
       await providerService.update(providerId, form);
-      Alert.alert(t('common.success'), 'Provider updated.');
+      Alert.alert(t('common.success'), t('providers.update_success'));
       navigation.goBack();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || 'Check your backend connection');
@@ -126,7 +129,7 @@ export const EditProviderScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   label: {
     fontSize: 14,

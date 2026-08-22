@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../../store/hooks';
 import { OptionalEntityPicker } from './OptionalEntityPicker';
 
@@ -8,11 +9,12 @@ interface Props {
 }
 
 export const OptionalClientPicker: React.FC<Props> = ({ value, onChange }) => {
+  const { t } = useTranslation();
   const clients = useAppSelector(state => state.clients.items);
 
   return (
     <OptionalEntityPicker
-      title="Client"
+      title={t('transactions.client_title')}
       value={value}
       onChange={onChange}
       items={clients

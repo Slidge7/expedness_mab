@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 export const StockPanel: React.FC = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
 
@@ -32,7 +35,7 @@ export const StockPanel: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   panel: {
     flex: 1,
     backgroundColor: '#F1F5F9',

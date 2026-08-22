@@ -11,7 +11,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchDashboard } from '../../../store/overviewSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { Preset, GroupBy } from '../api/overviewService';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
@@ -52,6 +53,41 @@ const shortLabel = (label: string, groupBy: GroupBy): string => {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export const DashboardScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
+  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+
+  const Empty = ({ text }: { text: string }) => <Text style={styles.empty}>{text}</Text>;
+
+  const LegendDot = ({ color, label }: { color: string; label: string }) => (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <Text style={styles.legendLabel}>{label}</Text>
+    </View>
+  );
+
+  const ProgressRow = ({ label, amount, count, pct, color }: { label: string; amount: number; count: number; pct: number; color: string }) => (
+    <View style={styles.progressRow}>
+      <View style={[styles.progressDot, { backgroundColor: color }]} />
+      <View style={styles.progressBody}>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressLabel} numberOfLines={1}>{label}</Text>
+          <Text style={styles.progressAmount}>${fmt(amount)}</Text>
+        </View>
+        <View style={styles.progressBg}>
+          <View style={[styles.progressFill, { width: `${pct}%` as any, backgroundColor: color }]} />
+        </View>
+        <Text style={styles.progressMeta}>{count} transactions · {pct.toFixed(1)}%</Text>
+      </View>
+    </View>
+  );
+
   const dispatch = useAppDispatch();
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
@@ -100,8 +136,8 @@ export const DashboardScreen = () => {
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.welcome}>Hello, {user?.username} 👋</Text>
-          <Text style={styles.subtitle}>Here is your store summary.</Text>
+          <Text style={styles.welcome}>{t('dashboard.hello_user', { username: user?.username || '' })}</Text>
+          <Text style={styles.subtitle}>{t('dashboard.store_summary')}</Text>
         </View>
 
         {/* Preset pills */}
@@ -144,13 +180,13 @@ export const DashboardScreen = () => {
                  title={t('dashboard.add_income')} 
                  variant="success" 
                  style={styles.actionBtn} 
-                 onPress={() => navigation.navigate('CreateTransaction', { type: 'INCOME' })} 
+                 onPress={() => navigation.navigate('CreateTransaction', { initialType: 'INCOME' })} 
                />
                <Button 
                  title={t('dashboard.add_expense')} 
                  variant="danger" 
                  style={styles.actionBtn} 
-                 onPress={() => navigation.navigate('CreateTransaction', { type: 'EXPENSE' })} 
+                 onPress={() => navigation.navigate('CreateTransaction', { initialType: 'EXPENSE' })} 
                />
             </View>
           </Card>
@@ -194,7 +230,7 @@ export const DashboardScreen = () => {
           </View>
 
           {/* ── Period Chart ───────────────────────────────────────────────── */}
-          <Section title="Sales & Expenses Over Time">
+          <Section title={t('dashboard.sales_expenses_over_time')}>
             {/* GroupBy tabs */}
             <View style={styles.tabRow}>
               {PERIOD_TABS.map(tab => (
@@ -217,7 +253,7 @@ export const DashboardScreen = () => {
             </View>
 
             {(dashboard?.byPeriod ?? []).length === 0 ? (
-              <Empty />
+              <Empty text={t('dashboard.no_data')} />
             ) : (
               <Card>
                 <ScrollView
@@ -262,10 +298,10 @@ export const DashboardScreen = () => {
           </Section>
 
           {/* ── By Category ───────────────────────────────────────────────── */}
-          <Section title="Top Categories">
+          <Section title={t('dashboard.top_categories')}>
             <Card>
               {(dashboard?.byCategory ?? []).length === 0 ? (
-                <Empty />
+                <Empty text={t('dashboard.no_data')} />
               ) : (
                 dashboard!.byCategory.map((cat, i) => (
                   <ProgressRow
@@ -289,70 +325,9 @@ export const DashboardScreen = () => {
   );
 };
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-const Section = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => (
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    {children}
-  </View>
-);
-
-const Empty = () => <Text style={styles.empty}>No data available for this period.</Text>;
-
-const LegendDot = ({ color, label }: { color: string; label: string }) => (
-  <View style={styles.legendItem}>
-    <View style={[styles.legendDot, { backgroundColor: color }]} />
-    <Text style={styles.legendLabel}>{label}</Text>
-  </View>
-);
-
-const ProgressRow = ({
-  label,
-  amount,
-  count,
-  pct,
-  color,
-}: {
-  label: string;
-  amount: number;
-  count: number;
-  pct: number;
-  color: string;
-}) => (
-  <View style={styles.progressRow}>
-    <View style={[styles.progressDot, { backgroundColor: color }]} />
-    <View style={styles.progressBody}>
-      <View style={styles.progressHeader}>
-        <Text style={styles.progressLabel} numberOfLines={1}>
-          {label}
-        </Text>
-        <Text style={styles.progressAmount}>${fmt(amount)}</Text>
-      </View>
-      <View style={styles.progressBg}>
-        <View
-          style={[
-            styles.progressFill,
-            { width: `${pct}%` as any, backgroundColor: color },
-          ]}
-        />
-      </View>
-      <Text style={styles.progressMeta}>
-        {count} transactions · {pct.toFixed(1)}%
-      </Text>
-    </View>
-  </View>
-);
-
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   content: { paddingHorizontal: theme.spacing.l },
 

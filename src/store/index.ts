@@ -1,6 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './authSlice';
-import transactionReducer from './transactionSlice';
 import missionReducer from './missionSlice';
 import itemReducer from './itemSlice';
 import locationReducer from './locationSlice';
@@ -8,11 +7,11 @@ import clientReducer from './clientSlice';
 import providerReducer from './providerSlice';
 import overviewReducer from './overviewSlice';
 import stockReducer from './stockSlice';
+import catalogReducer from './catalogSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    transactions: transactionReducer,
     locations: locationReducer,
     clients: clientReducer,
     providers: providerReducer,
@@ -20,6 +19,7 @@ export const store = configureStore({
     missions: missionReducer,
     overview: overviewReducer,
     stock: stockReducer,
+    catalogs: catalogReducer,
   },
 });
 

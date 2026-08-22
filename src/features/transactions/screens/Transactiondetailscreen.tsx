@@ -14,28 +14,44 @@ import {
   RouteProp,
   useIsFocused,
 } from '@react-navigation/native';
-import { transactionService, TransactionDTO } from '../api/transactionService';
+import {
+  transactionService,
+  TransactionDTO,
+  TransactionStatus,
+  PaymentStatus,
+} from '../api/transactionService';
 import { DEFAULT_ITEM_CATEGORY } from '../../items/constants';
 import { formatMoney } from '../utils/discountUtils';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 type RouteParams = { transactionId: number };
 
-const InfoRow = ({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue}>{value ?? '—'}</Text>
-  </View>
-);
+const STATUS_COLORS: Record<TransactionStatus, string> = {
+  CONFIRMED: '#3B82F6',
+  PREPARED: '#F59E0B',
+  DELIVERED: '#10B981',
+  CANCELLED: '#EF4444',
+};
+
+const PAYMENT_COLORS: Record<PaymentStatus, string> = {
+  PAID: '#10B981',
+  CREDIT: '#6366F1',
+  UNPAID: '#EF4444',
+  PARTIAL: '#F59E0B',
+};
 
 export const TransactionDetailScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
+  const InfoRow = ({ label, value }: { label: string; value?: string | number | null }) => (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value ?? '—'}</Text>
+    </View>
+  );
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
@@ -45,6 +61,7 @@ export const TransactionDetailScreen = () => {
   const [tx, setTx] = useState<TransactionDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -62,6 +79,34 @@ export const TransactionDetailScreen = () => {
   useEffect(() => {
     if (isFocused) load();
   }, [isFocused, load]);
+
+  const handleMarkDelivered = async () => {
+    if (!tx?.id) return;
+    try {
+      setUpdating(true);
+      const current = await transactionService.getById(tx.id);
+      await transactionService.update(tx.id, { ...current, status: 'DELIVERED' });
+      await load();
+    } catch {
+      Alert.alert('Error', 'Failed to update transaction status.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!tx?.id) return;
+    try {
+      setUpdating(true);
+      const current = await transactionService.getById(tx.id);
+      await transactionService.update(tx.id, { ...current, paymentStatus: 'PAID' });
+      await load();
+    } catch {
+      Alert.alert('Error', 'Failed to update payment status.');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert(
@@ -109,6 +154,14 @@ export const TransactionDetailScreen = () => {
   };
 
   const hasDiscount = (tx.discountAmount ?? 0) > 0;
+  const isCatalogOrder = tx.description?.startsWith('Catalog order:');
+  const showDeliveredAction =
+    isIncome &&
+    tx.status != null &&
+    tx.status !== 'DELIVERED' &&
+    tx.status !== 'CANCELLED';
+  const showPaidAction = isIncome && tx.paymentStatus != null && tx.paymentStatus !== 'PAID';
+  const showFulfillment = showDeliveredAction || showPaidAction;
 
   return (
     <View style={styles.container}>
@@ -143,6 +196,16 @@ export const TransactionDetailScreen = () => {
                 <Text style={styles.badgeText}>{formatCategory(tx.category)}</Text>
               </View>
             )}
+            {tx.status && (
+              <View style={[styles.badge, { backgroundColor: STATUS_COLORS[tx.status] }]}>
+                <Text style={styles.badgeText}>{t(`transaction.status_${tx.status}`)}</Text>
+              </View>
+            )}
+            {tx.paymentStatus && (
+              <View style={[styles.badge, { backgroundColor: PAYMENT_COLORS[tx.paymentStatus] }]}>
+                <Text style={styles.badgeText}>{t(`transaction.payment_${tx.paymentStatus}`)}</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.headerDesc}>{tx.description}</Text>
         </View>
@@ -150,6 +213,11 @@ export const TransactionDetailScreen = () => {
         {/* ── Info ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('transaction.transaction_info')}</Text>
+          {isCatalogOrder && (
+            <View style={styles.catalogBanner}>
+              <Text style={styles.catalogBannerText}>{t('transaction.catalog_origin')}</Text>
+            </View>
+          )}
           <InfoRow label={t('transaction.date')} value={formattedDate} />
           <InfoRow label={t('transaction.created_by')} value={tx.createdBy} />
           <InfoRow
@@ -168,7 +236,46 @@ export const TransactionDetailScreen = () => {
             label={t('transaction.provider')}
             value={tx.providerName ?? (tx.providerId ? `#${tx.providerId}` : null)}
           />
+          <InfoRow
+            label={t('transaction.status')}
+            value={tx.status ? t(`transaction.status_${tx.status}`) : null}
+          />
+          <InfoRow
+            label={t('transaction.payment_status')}
+            value={tx.paymentStatus ? t(`transaction.payment_${tx.paymentStatus}`) : null}
+          />
         </View>
+
+        {showFulfillment && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('transaction.fulfillment')}</Text>
+            <View style={styles.fulfillmentActions}>
+              {showDeliveredAction && (
+                <TouchableOpacity
+                  style={[styles.fulfillmentBtn, updating && { opacity: 0.5 }]}
+                  onPress={handleMarkDelivered}
+                  disabled={updating}
+                >
+                  <Text style={styles.fulfillmentBtnText}>
+                    {updating ? t('transaction.updating') : t('transaction.mark_delivered')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showPaidAction && (
+                <TouchableOpacity
+                  style={[styles.fulfillmentBtnPaid, updating && { opacity: 0.5 }]}
+                  onPress={handleMarkPaid}
+                  disabled={updating}
+                >
+                  <Text style={styles.fulfillmentBtnText}>
+                    {updating ? t('transaction.updating') : t('transaction.mark_paid')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.fulfillmentHint}>{t('transaction.fulfillment_hint')}</Text>
+          </View>
+        )}
 
         {/* ── Items ── */}
         <View style={styles.section}>
@@ -261,7 +368,7 @@ export const TransactionDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -310,6 +417,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E293B',
     marginBottom: 14,
+  },
+  catalogBanner: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  catalogBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1D4ED8',
+  },
+  fulfillmentActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 10,
+  },
+  fulfillmentBtn: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  fulfillmentBtnPaid: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  fulfillmentBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  fulfillmentHint: {
+    fontSize: 12,
+    color: '#64748B',
+    fontStyle: 'italic',
   },
 
   infoRow: {

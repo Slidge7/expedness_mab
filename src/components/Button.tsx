@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps, ActivityIndicator } from 'react-native';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
+import type { AppTheme } from '../theme';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
@@ -10,6 +11,9 @@ interface ButtonProps extends TouchableOpacityProps {
 }
 
 export const Button = ({ title, variant = 'primary', size = 'l', loading, style, ...props }: ButtonProps) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
   const getBackgroundColor = () => {
     if (props.disabled) return theme.colors.border;
     switch (variant) {
@@ -55,7 +59,7 @@ export const Button = ({ title, variant = 'primary', size = 'l', loading, style,
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   base: {
     borderRadius: theme.radius.m,
     flexDirection: 'row',

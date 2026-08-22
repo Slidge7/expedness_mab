@@ -8,22 +8,31 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
+  Image,
 } from 'react-native';
-import { categoryService, CategoryDTO } from '../api/categoryService';
-import { theme } from '../../../theme';
+import {
+  categoryService,
+  CategoryDTO,
+} from '../../categories/api/categoryService';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
   value?: string;
   onChange: (name: string) => void;
   required?: boolean;
+  categoryTypeFilter?: string;
 }
 
 export const CategoryPicker: React.FC<Props> = ({
   value,
   onChange,
   required = false,
+  categoryTypeFilter,
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -32,12 +41,14 @@ export const CategoryPicker: React.FC<Props> = ({
 
   useEffect(() => {
     if (open) loadCategories();
-  }, [open]);
+  }, [open, categoryTypeFilter]);
 
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const data = await categoryService.getAll();
+      const data = categoryTypeFilter
+        ? await categoryService.getByType(categoryTypeFilter)
+        : await categoryService.getAll();
       setCategories(data);
     } catch (e) {
       console.error('Failed to load categories', e);
@@ -66,8 +77,11 @@ export const CategoryPicker: React.FC<Props> = ({
     );
     if (!exists) {
       try {
-        await categoryService.create({ name: trimmed });
-        setCategories(prev => [...prev, { name: trimmed }]);
+        const created = await categoryService.create({
+          name: trimmed,
+          categoryType: categoryTypeFilter,
+        });
+        setCategories(prev => [...prev, created]);
       } catch (e) {
         console.error('Failed to create category', e);
       }
@@ -78,12 +92,26 @@ export const CategoryPicker: React.FC<Props> = ({
     setOpen(false);
   };
 
+  const selectedCategory = categories.find(
+    c => c.name.toLowerCase() === value?.toLowerCase(),
+  );
+
   return (
     <>
       <TouchableOpacity style={styles.trigger} onPress={() => setOpen(true)}>
-        <Text style={value ? styles.triggerText : styles.triggerPlaceholder}>
-          {value || t('transaction.select_category')}
-        </Text>
+        <View style={styles.triggerContent}>
+          {selectedCategory?.imageSmall ? (
+            <Image
+              source={{
+                uri: `data:image/jpeg;base64,${selectedCategory.imageSmall}`,
+              }}
+              style={styles.triggerThumb}
+            />
+          ) : null}
+          <Text style={value ? styles.triggerText : styles.triggerPlaceholder}>
+            {value || t('transaction.select_category')}
+          </Text>
+        </View>
         <Text style={styles.chevron}>▾</Text>
       </TouchableOpacity>
 
@@ -122,7 +150,9 @@ export const CategoryPicker: React.FC<Props> = ({
                     style={styles.newItem}
                     onPress={() => handleSelect(query.trim())}
                   >
-                    <Text style={styles.newItemLabel}>{t('transaction.create_category')}</Text>
+                    <Text style={styles.newItemLabel}>
+                      {t('transaction.create_category')}
+                    </Text>
                     <Text style={styles.newItemName}>"{query.trim()}"</Text>
                   </TouchableOpacity>
                 ) : null
@@ -135,14 +165,35 @@ export const CategoryPicker: React.FC<Props> = ({
                   ]}
                   onPress={() => handleSelect(item.name)}
                 >
-                  <Text
-                    style={[
-                      styles.itemText,
-                      value === item.name && styles.itemTextActive,
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
+                  <View style={styles.itemRow}>
+                    {item.imageSmall ? (
+                      <Image
+                        source={{
+                          uri: `data:image/jpeg;base64,${item.imageSmall}`,
+                        }}
+                        style={styles.itemThumb}
+                      />
+                    ) : (
+                      <View style={styles.itemThumbPlaceholder}>
+                        <Text style={styles.itemThumbLetter}>
+                          {item.name.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.itemInfo}>
+                      <Text
+                        style={[
+                          styles.itemText,
+                          value === item.name && styles.itemTextActive,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      {item.categoryType ? (
+                        <Text style={styles.itemType}>{item.categoryType}</Text>
+                      ) : null}
+                    </View>
+                  </View>
                   {value === item.name && <Text style={styles.check}>✓</Text>}
                 </TouchableOpacity>
               )}
@@ -159,7 +210,7 @@ export const CategoryPicker: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -170,6 +221,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     backgroundColor: '#F8FAFC',
+  },
+  triggerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  triggerThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    marginRight: 10,
   },
   triggerText: { fontSize: 15, color: '#334155', flex: 1 },
   triggerPlaceholder: { fontSize: 15, color: '#94A3B8', flex: 1 },
@@ -232,14 +294,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 13,
+    paddingVertical: 10,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   itemActive: { backgroundColor: '#F0FDF4' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  itemThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  itemThumbPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemThumbLetter: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+  itemInfo: { flex: 1 },
   itemText: { fontSize: 15, color: '#334155' },
   itemTextActive: { color: theme.colors.primary, fontWeight: '700' },
+  itemType: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
   check: { color: theme.colors.primary, fontWeight: '700' },
   empty: { textAlign: 'center', color: '#94A3B8', paddingVertical: 20 },
 });

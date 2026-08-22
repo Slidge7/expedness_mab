@@ -13,10 +13,13 @@ export interface ItemDTO {
   active: boolean;
   createdAt?: string;
   createdBy?: string;
-  imageSmall?: string | null; // Base64 string
-  imageMedium?: string | null; // Base64 string
+  imageSmall?: string | null; // Base64 thumbnail (~150px), populated on list endpoints
+  imageMedium?: string | null; // Base64 medium image, detail GET and upload responses
   providerIds?: number[];
   providerNames?: string[];
+  marqueId?: number | null;
+  marqueTitle?: string | null;
+  tags?: string[];
   stockEnabled?: boolean;
   currentStock?: number;
   minStock?: number | null;
@@ -31,6 +34,8 @@ export interface CreateItemData {
   unit?: string;
   active: boolean;
   providerIds?: number[];
+  marqueId?: number | null;
+  tags?: string[];
 }
 
 export const itemService = {
@@ -44,6 +49,11 @@ export const itemService = {
 
   getById: async (id: number) =>
     (await apiClient.get<ItemDTO>(`/api/items/get/${id}`)).data,
+
+  getByMarque: async (marqueId: number) =>
+    (
+      await apiClient.get<ItemDTO[]>(`/api/items/marque/${marqueId}`)
+    ).data,
 
   create: async (data: CreateItemData) =>
     (await apiClient.post<ItemDTO>('/api/items/create', data)).data,

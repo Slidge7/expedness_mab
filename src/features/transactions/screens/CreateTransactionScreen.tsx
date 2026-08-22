@@ -15,13 +15,17 @@ import {
   transactionService,
   TransactionItemDTO,
   DiscountType,
+  TransactionStatus,
+  PaymentStatus,
 } from '../api/transactionService';
 import { SelectedCartItemRow } from '../components/SelectedCartItemRow';
+import { TransactionInventoryRow } from '../components/TransactionInventoryRow';
 import { DiscountField } from '../components/DiscountField';
 import { calcTransactionTotals } from '../utils/discountUtils';
 import {
   buildTransactionItems,
   getItemDisplayName,
+  getItemImageUri,
   parseTransactionDiscount,
   validateTransactionDiscount,
 } from '../utils/transactionFormHelpers';
@@ -30,19 +34,20 @@ import { fetchLocations } from '../../../store/locationSlice';
 import { fetchItems } from '../../../store/itemSlice';
 import { fetchClients } from '../../../store/clientSlice';
 import { fetchProviders } from '../../../store/providerSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { OptionalEntityPicker } from '../components/OptionalEntityPicker';
-import {
-  TransactionPartyPicker,
-  PartyMode,
-} from '../components/TransactionPartyPicker';
+import { OptionalClientPicker } from '../components/OptionalClientPicker';
+import { OptionalProviderPicker } from '../components/OptionalProviderPicker';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
 import { ItemDTO } from '../../items/api/itemService';
 import { useTranslation } from 'react-i18next';
 
 export const CreateTransactionScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const { t } = useTranslation();
   const route = useRoute<RouteProp<{ params?: { initialType?: 'INCOME' | 'EXPENSE' } }>>();
@@ -50,8 +55,6 @@ export const CreateTransactionScreen = () => {
 
   const missions = useAppSelector(state => state.missions.items);
   const locations = useAppSelector(state => state.locations.items);
-  const clients = useAppSelector(state => state.clients.items);
-  const providers = useAppSelector(state => state.providers.items);
   const inventoryItems = useAppSelector(state => state.items.items);
   const user = useAppSelector(state => state.auth.user);
 
@@ -62,10 +65,11 @@ export const CreateTransactionScreen = () => {
   const [category, setCategory] = useState<string>('');
   const [missionId, setMissionId] = useState<number | null>(null);
   const [locationId, setLocationId] = useState<number | null>(null);
-  const [partyMode, setPartyMode] = useState<PartyMode>('none');
   const [clientId, setClientId] = useState<number | null>(null);
   const [providerId, setProviderId] = useState<number | null>(null);
   const [snapBalance, setSnapBalance] = useState<'AFTER' | 'BEFORE' | undefined>(undefined);
+  const [status, setStatus] = useState<TransactionStatus>('DELIVERED');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('PAID');
   
   const [cart, setCart] = useState<Record<string, TransactionItemDTO>>({});
   const [transactionDiscountType, setTransactionDiscountType] = useState<DiscountType | null>(null);
@@ -128,6 +132,22 @@ export const CreateTransactionScreen = () => {
     });
   };
 
+  const handleItemDiscountChange = (key: string, discountType: DiscountType | null, value: string) => {
+    setCart(prev => {
+      const existing = prev[key];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...existing,
+          discountType,
+          discountValueInput: value,
+          discountValue: value === '' ? null : parseFloat(value),
+        },
+      };
+    });
+  };
+
   const cartItemsArray = Object.values(cart);
   const totalQuantity = cartItemsArray.reduce((sum, i) => sum + i.quantity, 0);
   const previewItems = buildTransactionItems(cart, type);
@@ -138,7 +158,12 @@ export const CreateTransactionScreen = () => {
   const totals = calcTransactionTotals(previewItems, txDiscount);
 
   const filteredInventory = inventoryItems
-    .filter(i => i.active && i.name.toLowerCase().includes(itemSearchQuery.toLowerCase()))
+    .filter(
+      i =>
+        i.active &&
+        i.type === type &&
+        i.name.toLowerCase().includes(itemSearchQuery.toLowerCase()),
+    )
     .slice(0, 10); // Limit to 10 for performance
 
   const handleSubmit = async () => {
@@ -158,6 +183,15 @@ export const CreateTransactionScreen = () => {
       Alert.alert('Error', t(`transaction.${discountError}`));
       return;
     }
+    // Validate line item discounts
+    for (const [key, item] of Object.entries(cart)) {
+      const error = validateTransactionDiscount(item.discountType, item.discountValueInput);
+      if (error) {
+        const itemName = getItemDisplayName(item, inventoryItems);
+        Alert.alert('Error', `${itemName}: ${t(`transaction.${error}`)}`);
+        return;
+      }
+    }
     try {
       setLoading(true);
       await transactionService.create({
@@ -167,10 +201,12 @@ export const CreateTransactionScreen = () => {
         category: category.trim() || undefined,
         missionId: missionId ?? null,
         locationId: locationId ?? null,
-        clientId: partyMode === 'client' ? clientId : null,
-        providerId: partyMode === 'provider' ? providerId : null,
+        clientId: type === 'INCOME' ? clientId : null,
+        providerId: type === 'EXPENSE' ? providerId : null,
         userId: user?.id,
         snapBalance,
+        status,
+        paymentStatus,
         transactionDate: new Date().toISOString(),
         ...parseTransactionDiscount(transactionDiscountType, transactionDiscountValue),
         items: previewItems,
@@ -206,24 +242,50 @@ export const CreateTransactionScreen = () => {
           ]}>
             ${totals.totalAmount.toFixed(2)}
           </Text>
+          {totals.discountAmount > 0 && (
+            <View style={styles.discountFeedbackRow}>
+              <Text style={[styles.discountFeedbackText, { color: type === 'INCOME' ? theme.colors.success : theme.colors.danger }]}>
+                {t('transaction.gross_subtotal')}: ${totals.lines.reduce((sum, line) => sum + line.subtotal, 0).toFixed(2)}
+              </Text>
+              <Text style={[styles.discountFeedbackText, { color: type === 'INCOME' ? theme.colors.success : theme.colors.danger }]}>
+                {t('transaction.discount')}: -${totals.discountAmount.toFixed(2)}
+              </Text>
+            </View>
+          )}
           <View style={styles.summaryBadge}>
             <Text style={styles.summaryCount}>{t('transaction.items_total', { count: totalQuantity })}</Text>
           </View>
         </View>
+
+        {/* Transaction Discount */}
+        <Card style={styles.topDiscountCard}>
+          <Text style={styles.topDiscountLabel}>{t('transaction.discount')}</Text>
+          <DiscountField
+            discountType={transactionDiscountType}
+            discountValue={transactionDiscountValue}
+            onChange={(discountType, value) => {
+              setTransactionDiscountType(discountType);
+              setTransactionDiscountValue(value);
+            }}
+          />
+        </Card>
 
         {/* SECTION 1: Selected Items */}
         {cartItemsArray.length > 0 && (
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>{t('transaction.selected_items')}</Text>
             <View style={styles.selectedItemsList}>
-              {Object.entries(cart).map(([key, item]) => (
+              {Object.entries(cart).map(([key, item], index) => (
                 <SelectedCartItemRow
                   key={key}
                   item={item}
                   displayName={getItemDisplayName(item, inventoryItems)}
+                  imageUri={getItemImageUri(item, inventoryItems)}
                   onDecrement={() => handleDecrement(Number(key))}
                   onIncrement={() => handleIncrement({ id: item.itemId } as ItemDTO)}
                   onRemove={() => handleRemove(key)}
+                  lineTotal={totals.lines[index]?.amount}
+                  onDiscountChange={(discountType, value) => handleItemDiscountChange(key, discountType, value)}
                 />
               ))}
             </View>
@@ -243,33 +305,15 @@ export const CreateTransactionScreen = () => {
               onChangeText={setItemSearchQuery}
             />
           </View>
-          <View style={styles.inventoryGrid}>
-            {filteredInventory.map(item => {
-              const qty = cart[item.id!]?.quantity || 0;
-              return (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={[styles.inventoryCard, qty > 0 && styles.inventoryCardActive]}
-                  onPress={() => handleIncrement(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.inventoryCardHeader}>
-                    <Text style={styles.inventoryItemName} numberOfLines={2}>{item.name}</Text>
-                    {qty > 0 ? (
-                      <View style={styles.inventoryItemBadge}>
-                        <Text style={styles.inventoryItemBadgeText}>{qty}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text style={styles.inventoryItemPrice}>${item.unitPrice?.toFixed(2) || '0.00'}</Text>
-                  {qty === 0 && (
-                    <View style={styles.addButtonWrapper}>
-                      <Text style={styles.addButtonText}>+ ADD</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )
-            })}
+          <View style={styles.inventoryList}>
+            {filteredInventory.map(item => (
+              <TransactionInventoryRow
+                key={item.id}
+                item={item}
+                quantity={cart[item.id!]?.quantity || 0}
+                onPress={() => handleIncrement(item)}
+              />
+            ))}
             {filteredInventory.length === 0 && (
               <View style={styles.emptyStateWrapper}>
                 <Text style={styles.emptyText}>{t('transaction.no_matching_items')}</Text>
@@ -310,17 +354,7 @@ export const CreateTransactionScreen = () => {
             </View>
           </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>{t('transaction.discount')}</Text>
-            <DiscountField
-              discountType={transactionDiscountType}
-              discountValue={transactionDiscountValue}
-              onChange={(discountType, value) => {
-                setTransactionDiscountType(discountType);
-                setTransactionDiscountValue(value);
-              }}
-            />
-          </View>
+
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>{t('transaction.category_optional')}</Text>
@@ -331,7 +365,7 @@ export const CreateTransactionScreen = () => {
             <View style={styles.formGroupHalf}>
               <Text style={styles.label}>{t('transaction.mission_optional')}</Text>
               <OptionalEntityPicker
-                title="Mission"
+                title={t('transactions.mission_title')}
                 value={missionId}
                 onChange={setMissionId}
                 items={missions.filter(m => m.id != null).map(m => ({ id: m.id!, label: m.title }))}
@@ -340,7 +374,7 @@ export const CreateTransactionScreen = () => {
             <View style={styles.formGroupHalf}>
               <Text style={styles.label}>{t('transaction.location_optional')}</Text>
               <OptionalEntityPicker
-                title="Location"
+                title={t('transactions.location_title')}
                 value={locationId}
                 onChange={setLocationId}
                 items={locations.filter(l => l.id != null).map(l => ({ id: l.id!, label: l.name }))}
@@ -348,21 +382,17 @@ export const CreateTransactionScreen = () => {
             </View>
           </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>{t('transaction.client_provider_optional')}</Text>
-            <TransactionPartyPicker
-              mode={partyMode}
-              clientId={clientId}
-              providerId={providerId}
-              clients={clients.filter(c => c.id != null).map(c => ({ id: c.id!, label: c.name }))}
-              providers={providers.filter(p => p.id != null).map(p => ({ id: p.id!, label: p.name }))}
-              onChange={(mode, nextClientId, nextProviderId) => {
-                setPartyMode(mode);
-                setClientId(nextClientId);
-                setProviderId(nextProviderId);
-              }}
-            />
-          </View>
+          {type === 'INCOME' ? (
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>{t('transaction.client_optional')}</Text>
+              <OptionalClientPicker value={clientId} onChange={setClientId} />
+            </View>
+          ) : (
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>{t('transaction.provider_optional')}</Text>
+              <OptionalProviderPicker value={providerId} onChange={setProviderId} />
+            </View>
+          )}
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>{t('transaction.balance_snapshot')}</Text>
@@ -375,6 +405,40 @@ export const CreateTransactionScreen = () => {
                 >
                   <Text style={[styles.chipText, snapBalance === opt && styles.chipTextActive]}>
                     {opt === undefined ? t('transaction.none') : opt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.status')}</Text>
+            <View style={styles.chipRow}>
+              {(['CONFIRMED', 'PREPARED', 'DELIVERED', 'CANCELLED'] as const).map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => setStatus(opt)}
+                  style={[styles.chip, status === opt && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, status === opt && styles.chipTextActive]}>
+                    {t(`transaction.status_${opt}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t('transaction.payment_status')}</Text>
+            <View style={styles.chipRow}>
+              {(['PAID', 'CREDIT', 'UNPAID', 'PARTIAL'] as const).map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => setPaymentStatus(opt)}
+                  style={[styles.chip, paymentStatus === opt && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, paymentStatus === opt && styles.chipTextActive]}>
+                    {t(`transaction.payment_${opt}`)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -397,7 +461,7 @@ export const CreateTransactionScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   scrollContent: { padding: theme.spacing.m, paddingBottom: 140, maxWidth: 800, alignSelf: 'center', width: '100%', gap: theme.spacing.xl },
   
@@ -408,6 +472,30 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     marginVertical: theme.spacing.s,
     ...theme.shadows.md,
+  },
+  discountFeedbackRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.m,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.s,
+    alignItems: 'center',
+    opacity: 0.8,
+  },
+  discountFeedbackText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  topDiscountCard: {
+    padding: theme.spacing.m,
+    gap: theme.spacing.s,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.l,
+    ...theme.shadows.sm,
+  },
+  topDiscountLabel: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.colors.text,
   },
   summaryLabel: { fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: theme.spacing.s },
   summaryTotal: { fontSize: 56, fontWeight: '900', marginVertical: theme.spacing.xs, letterSpacing: -1 },
@@ -448,24 +536,7 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 18, marginRight: theme.spacing.s, opacity: 0.5 },
   searchInput: { flex: 1, paddingVertical: 16, fontSize: 16, color: theme.colors.text, fontWeight: '500' },
   
-  inventoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.s },
-  inventoryCard: { 
-    width: '48%', 
-    backgroundColor: theme.colors.surface, 
-    borderRadius: theme.radius.l, 
-    padding: theme.spacing.m,
-    ...theme.shadows.sm,
-    borderWidth: 2,
-    borderColor: 'transparent'
-  },
-  inventoryCardActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primaryLight },
-  inventoryCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.s },
-  inventoryItemName: { fontWeight: '700', fontSize: 15, color: theme.colors.text, flex: 1, marginRight: theme.spacing.xs },
-  inventoryItemBadge: { backgroundColor: theme.colors.primary, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  inventoryItemBadgeText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
-  inventoryItemPrice: { fontSize: 18, fontWeight: '800', color: theme.colors.text, marginBottom: theme.spacing.m },
-  addButtonWrapper: { backgroundColor: theme.colors.inputBg, paddingVertical: 8, borderRadius: theme.radius.m, alignItems: 'center' },
-  addButtonText: { color: theme.colors.primary, fontWeight: '800', fontSize: 13, letterSpacing: 1 },
+  inventoryList: { gap: 0 },
   emptyStateWrapper: { width: '100%', alignItems: 'center', paddingVertical: theme.spacing.xl },
 
   // Section 3: Details

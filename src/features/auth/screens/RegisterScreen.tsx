@@ -12,16 +12,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../api/authService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 
 // REDUX IMPORTS
 import { useAppDispatch } from '../../../store/hooks';
 import { loginSuccess } from '../../../store/authSlice';
 
 export const RegisterScreen = () => {
+  const theme = useTheme();
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
+  const styles = createStyles(theme);
 
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
@@ -112,7 +115,7 @@ export const RegisterScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

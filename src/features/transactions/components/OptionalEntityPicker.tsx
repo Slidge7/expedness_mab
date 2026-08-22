@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -7,7 +8,8 @@ import {
   StyleSheet,
   Modal,
 } from 'react-native';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 
 export interface EntityOption {
   id: number;
@@ -31,6 +33,9 @@ export const OptionalEntityPicker: React.FC<Props> = ({
   title,
   placeholder = NONE_LABEL,
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const selectedLabel =
@@ -102,7 +107,7 @@ export const OptionalEntityPicker: React.FC<Props> = ({
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>No options available</Text>
+              <Text style={styles.empty}>{t('common.no_options')}</Text>
             }
           />
         </View>
@@ -111,7 +116,7 @@ export const OptionalEntityPicker: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',

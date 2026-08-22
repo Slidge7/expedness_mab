@@ -9,7 +9,8 @@ import {
   NativeScrollEvent,
   Platform,
 } from 'react-native';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 
 interface Props {
   value: number;
@@ -29,6 +30,8 @@ export const QuantityPicker = ({
   max = 999,
   step = 1,
 }: Props) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const scrollRef = useRef<ScrollView>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track latest offset without triggering re-renders
@@ -136,7 +139,7 @@ export const QuantityPicker = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     width: 100,
     overflow: 'hidden',

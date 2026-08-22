@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { missionService, MissionDTO } from '../../missions/api/missionService';
-import { theme } from '../../../theme';
-import { managementStyles as s } from '../styles/managementStyles';
+import { useTheme } from '../../../theme/ThemeContext';
+import { createManagementStyles } from '../styles/managementStyles';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
 }
 
 export const MissionsPanel: React.FC<Props> = ({ isActive }) => {
+  const theme = useTheme();
+  const s = createManagementStyles(theme);
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const [items, setItems] = useState<MissionDTO[]>([]);
@@ -29,7 +31,7 @@ export const MissionsPanel: React.FC<Props> = ({ isActive }) => {
     try {
       setItems(await missionService.getAll());
     } catch {
-      Alert.alert(t('common.error'), 'Failed to load missions.');
+      Alert.alert(t('common.error'), t('management.load_missions_error'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -101,7 +103,7 @@ export const MissionsPanel: React.FC<Props> = ({ isActive }) => {
         onPress={() => navigation.navigate('CreateMission')}
       >
         <Text style={s.fabText}>+</Text>
-      </TouchableOpacity>
+         </TouchableOpacity>
     </View>
   );
 };

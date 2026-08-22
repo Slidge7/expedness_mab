@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { DiscountType } from '../api/transactionService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 
 interface Props {
   discountType?: DiscountType | null;
@@ -21,6 +22,8 @@ export const DiscountField: React.FC<Props> = ({
   discountValue,
   onChange,
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const { t } = useTranslation();
   const active = discountType != null;
 
@@ -73,7 +76,7 @@ export const DiscountField: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   addBtn: {
     alignSelf: 'flex-start',
     paddingVertical: 10,

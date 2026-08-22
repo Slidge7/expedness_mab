@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -8,7 +9,8 @@ import {
   StyleSheet,
   Modal,
 } from 'react-native';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { EntityOption } from './OptionalEntityPicker';
 
 export type PartyMode = 'none' | 'client' | 'provider';
@@ -30,6 +32,9 @@ export const TransactionPartyPicker: React.FC<Props> = ({
   providers,
   onChange,
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -103,7 +108,7 @@ export const TransactionPartyPicker: React.FC<Props> = ({
           </Text>
           <TextInput
             style={styles.search}
-            placeholder="Search..."
+            placeholder={t('common.search_placeholder')}
             value={query}
             onChangeText={setQuery}
             autoFocus
@@ -122,7 +127,7 @@ export const TransactionPartyPicker: React.FC<Props> = ({
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>No matches found</Text>
+              <Text style={styles.empty}>{t('common.no_matches')}</Text>
             }
           />
         </View>
@@ -131,7 +136,7 @@ export const TransactionPartyPicker: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   modeRow: { flexDirection: 'row', gap: 8, marginTop: 5 },
   modeBtn: {
     flex: 1,

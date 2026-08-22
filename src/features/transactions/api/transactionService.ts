@@ -1,6 +1,8 @@
 import apiClient from '../../../api/client';
 
 export type DiscountType = 'PERCENT' | 'FIXED';
+export type TransactionStatus = 'CONFIRMED' | 'PREPARED' | 'DELIVERED' | 'CANCELLED';
+export type PaymentStatus = 'PAID' | 'CREDIT' | 'UNPAID' | 'PARTIAL';
 
 export interface TransactionItemDTO {
   id?: number;
@@ -41,6 +43,8 @@ export interface TransactionDTO {
   createdBy?: string;
   createdAt?: string;
   snapBalance?: 'BEFORE' | 'AFTER';
+  status?: TransactionStatus | null;
+  paymentStatus?: PaymentStatus | null;
   items: TransactionItemDTO[];
 }
 

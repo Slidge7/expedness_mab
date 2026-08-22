@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 
 import { useTranslation } from 'react-i18next';
 
-export type ManagementTab = 'clients' | 'providers' | 'missions' | 'locations' | 'stock';
+export type ManagementTab = 'clients' | 'providers' | 'missions' | 'locations' | 'marques' | 'categories' | 'items' | 'stock' | 'catalogs';
 
 interface Props {
   active: ManagementTab;
@@ -12,6 +13,8 @@ interface Props {
 }
 
 export const ManagementTabBar: React.FC<Props> = ({ active, onChange }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const { t } = useTranslation();
 
   const TABS: { key: ManagementTab; label: string }[] = [
@@ -19,7 +22,11 @@ export const ManagementTabBar: React.FC<Props> = ({ active, onChange }) => {
     { key: 'providers', label: t('management.providers') },
     { key: 'missions', label: t('management.missions') },
     { key: 'locations', label: t('management.locations') },
+    { key: 'marques', label: t('management.marques') },
+    { key: 'categories', label: t('management.categories') },
+    { key: 'items', label: t('management.items') },
     { key: 'stock', label: t('management.stock') },
+    { key: 'catalogs', label: t('management.catalogs') },
   ];
 
   return (
@@ -48,7 +55,7 @@ export const ManagementTabBar: React.FC<Props> = ({ active, onChange }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   wrapper: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,

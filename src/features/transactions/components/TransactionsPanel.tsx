@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { transactionService, TransactionDTO } from '../api/transactionService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { Card } from '../../../components/Card';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
@@ -20,10 +21,12 @@ interface Props {
 }
 
 export const TransactionsPanel: React.FC<Props> = ({ type, isActive }) => {
+  const theme = useTheme();
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const [data, setData] = useState<TransactionDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const styles = createStyles(theme);
 
   const loadData = async () => {
     try {
@@ -31,7 +34,7 @@ export const TransactionsPanel: React.FC<Props> = ({ type, isActive }) => {
       const res = await transactionService.getAll();
       setData(
         res
-          .filter(t => t.type === type)
+          .filter(tx => tx.type === type)
           .sort(
             (a, b) =>
               new Date(b.transactionDate).getTime() -
@@ -52,7 +55,8 @@ export const TransactionsPanel: React.FC<Props> = ({ type, isActive }) => {
   const isIncome = type === 'INCOME';
   const accentColor = isIncome ? theme.colors.success : theme.colors.danger;
 
-  const renderItem = ({ item }: { item: TransactionDTO }) => (
+  const renderItem = useCallback(
+    ({ item }: { item: TransactionDTO }) => (
     <TouchableOpacity
       activeOpacity={0.75}
       onPress={() =>
@@ -114,13 +118,15 @@ export const TransactionsPanel: React.FC<Props> = ({ type, isActive }) => {
         </View>
       </Card>
     </TouchableOpacity>
+    ),
+    [navigation, accentColor, isIncome, t],
   );
 
   return (
     <View style={styles.container}>
       <FlatList
         data={data}
-        keyExtractor={item => item.id?.toString() ?? Math.random().toString()}
+        keyExtractor={(item, index) => item.id?.toString() ?? `fallback-${index}`}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -155,7 +161,7 @@ export const TransactionsPanel: React.FC<Props> = ({ type, isActive }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   listPadding: { paddingBottom: 100, paddingTop: theme.spacing.m, paddingHorizontal: theme.spacing.m },
   cardItem: {

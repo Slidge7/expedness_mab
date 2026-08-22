@@ -21,20 +21,29 @@ import {
   deleteItemImage,
 } from '../../../store/itemSlice';
 import { fetchProviders } from '../../../store/providerSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { CategoryPicker } from '../../transactions/components/CategoryPicker';
 import { MultiProviderPicker } from '../../transactions/components/MultiProviderPicker';
+import { MarquePicker } from '../components/MarquePicker';
+import { TagsMultiSelect } from '../components/TagsMultiSelect';
 import { useTranslation } from 'react-i18next';
 import { translateTransactionType } from '../../../i18n/helpers';
+import { getItemPreviewUri } from '../utils/itemImageUtils';
 
 export const EditItemScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
   const providers = useAppSelector(state => state.providers.items);
   const [providerIds, setProviderIds] = useState<number[]>([]);
+  const [marqueId, setMarqueId] = useState<number | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagsTouched, setTagsTouched] = useState(false);
 
   const { selectedItem, loading } = useAppSelector(state => state.items);
   const [saving, setSaving] = useState(false);
@@ -82,8 +91,12 @@ export const EditItemScreen = () => {
         active: selectedItem.active,
       });
       setProviderIds(selectedItem.providerIds ?? []);
-      if (selectedItem.imageMedium) {
-        setImageUri(`data:image/jpeg;base64,${selectedItem.imageMedium}`);
+      setMarqueId(selectedItem.marqueId ?? null);
+      setTags(selectedItem.tags ?? []);
+      setTagsTouched(false);
+      const previewUri = getItemPreviewUri(selectedItem);
+      if (previewUri) {
+        setImageUri(previewUri);
         setHasExistingImage(true);
       } else {
         setImageUri(null);
@@ -194,8 +207,8 @@ export const EditItemScreen = () => {
       }
     } else {
       setImageUri(
-        hasExistingImage && selectedItem?.imageMedium
-          ? `data:image/jpeg;base64,${selectedItem.imageMedium}`
+        hasExistingImage && selectedItem
+          ? getItemPreviewUri(selectedItem)
           : null,
       );
       setTempImageFile(null);
@@ -207,19 +220,25 @@ export const EditItemScreen = () => {
     if (!validateForm()) return;
     setSaving(true);
     try {
+      const data: Parameters<typeof updateItem>[0]['data'] = {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        unitPrice: parseFloat(form.unitPrice),
+        category: form.category.trim() || undefined,
+        type: form.type,
+        unit: form.unit.trim() || undefined,
+        active: form.active,
+        providerIds,
+        marqueId,
+      };
+      if (tagsTouched) {
+        data.tags = tags;
+      }
+
       await dispatch(
         updateItem({
           id: itemId,
-          data: {
-            name: form.name.trim(),
-            description: form.description.trim() || undefined,
-            unitPrice: parseFloat(form.unitPrice),
-            category: form.category.trim() || undefined,
-            type: form.type,
-            unit: form.unit.trim() || undefined,
-            active: form.active,
-            providerIds,
-          },
+          data,
         }),
       ).unwrap();
 
@@ -395,6 +414,7 @@ export const EditItemScreen = () => {
           <CategoryPicker
             value={form.category}
             onChange={name => setForm({ ...form, category: name })}
+            categoryTypeFilter={form.type.toLowerCase()}
           />
         </View>
 
@@ -406,6 +426,22 @@ export const EditItemScreen = () => {
             items={providers
               .filter(p => p.id != null)
               .map(p => ({ id: p.id!, label: p.name }))}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t('items.marque_optional')}</Text>
+          <MarquePicker value={marqueId} onChange={setMarqueId} />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t('items.tags')}</Text>
+          <TagsMultiSelect
+            value={tags}
+            onChange={next => {
+              setTags(next);
+              setTagsTouched(true);
+            }}
           />
         </View>
 
@@ -468,7 +504,7 @@ export const EditItemScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',

@@ -1,8 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { ItemFormPanel } from './ItemFormPanel';
 import { ItemDTO, TransactionType } from '../api/itemService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 import { translateTransactionType } from '../../../i18n/helpers';
 
@@ -23,6 +30,8 @@ export const CollapsibleItemForm: React.FC<CollapsibleItemFormProps> = ({
   onSaved,
   onCancel,
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const { t } = useTranslation();
   const isEdit = !!editItem;
   const typeLabel = translateTransactionType(t, itemType);
@@ -32,7 +41,7 @@ export const CollapsibleItemForm: React.FC<CollapsibleItemFormProps> = ({
     : t('items.new_type_item', { type: typeLabel });
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, expanded && styles.wrapperExpanded]}>
       <TouchableOpacity
         style={styles.header}
         onPress={onToggle}
@@ -50,22 +59,39 @@ export const CollapsibleItemForm: React.FC<CollapsibleItemFormProps> = ({
       </TouchableOpacity>
 
       {expanded && (
-        <ItemFormPanel
-          itemType={isEdit ? editItem!.type : itemType}
-          editItem={editItem}
-          onSaved={onSaved}
-          onCancel={onCancel}
-        />
+        <ScrollView
+          style={styles.formScroll}
+          contentContainerStyle={styles.formScrollContent}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+        >
+          <ItemFormPanel
+            itemType={isEdit ? editItem!.type : itemType}
+            editItem={editItem}
+            onSaved={onSaved}
+            onCancel={onCancel}
+          />
+        </ScrollView>
       )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   wrapper: {
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+  },
+  wrapperExpanded: {
+    flex: 1,
+  },
+  formScroll: {
+    flex: 1,
+  },
+  formScrollContent: {
+    paddingBottom: 24,
   },
   header: {
     flexDirection: 'row',

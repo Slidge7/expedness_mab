@@ -17,10 +17,14 @@ import {
   uploadItemImage,
   deleteItemImage,
 } from '../../../store/itemSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { CategoryPicker } from '../../transactions/components/CategoryPicker';
+import { MarquePicker } from './MarquePicker';
+import { TagsMultiSelect } from './TagsMultiSelect';
 import { ItemDTO, TransactionType } from '../api/itemService';
+import { getItemPreviewUri } from '../utils/itemImageUtils';
 import { useTranslation } from 'react-i18next';
 import { translateTransactionType } from '../../../i18n/helpers';
 
@@ -37,6 +41,8 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
   onSaved,
   onCancel,
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
   const isEdit = !!editItem?.id;
@@ -53,6 +59,9 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
     category: '',
     unit: 'pcs',
   });
+  const [marqueId, setMarqueId] = useState<number | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagsTouched, setTagsTouched] = useState(false);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -68,8 +77,12 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
         category: editItem.category || '',
         unit: editItem.unit || 'pcs',
       });
-      if (editItem.imageMedium) {
-        setImageUri(`data:image/jpeg;base64,${editItem.imageMedium}`);
+      setMarqueId(editItem.marqueId ?? null);
+      setTags(editItem.tags ?? []);
+      setTagsTouched(false);
+      const previewUri = getItemPreviewUri(editItem);
+      if (previewUri) {
+        setImageUri(previewUri);
         setHasExistingImage(true);
       } else {
         setImageUri(null);
@@ -85,6 +98,9 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
         category: '',
         unit: 'pcs',
       });
+      setMarqueId(null);
+      setTags([]);
+      setTagsTouched(false);
       setImageUri(null);
       setTempImageFile(null);
       setHasExistingImage(false);
@@ -183,9 +199,12 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
       setImageUri(null);
       setTempImageFile(null);
       setImageChanged(false);
-      if (isEdit && editItem?.imageMedium) {
-        setImageUri(`data:image/jpeg;base64,${editItem.imageMedium}`);
-        setHasExistingImage(true);
+      if (isEdit && editItem) {
+        const previewUri = getItemPreviewUri(editItem);
+        if (previewUri) {
+          setImageUri(previewUri);
+          setHasExistingImage(true);
+        }
       }
     }
   };
@@ -193,7 +212,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const payload = {
+    const payload: Parameters<typeof updateItem>[0]['data'] = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       unitPrice: parseFloat(form.unitPrice),
@@ -202,7 +221,16 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
       unit: form.unit.trim() || undefined,
       active: editItem?.active ?? true,
       providerIds: editItem?.providerIds,
+      marqueId,
     };
+
+    if (isEdit) {
+      if (tagsTouched) {
+        payload.tags = tags;
+      }
+    } else {
+      payload.tags = tags;
+    }
 
     setLoading(true);
     try {
@@ -336,6 +364,26 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
           <CategoryPicker
             value={form.category}
             onChange={name => setForm({ ...form, category: name })}
+            categoryTypeFilter={itemType.toLowerCase()}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t('items.marque_optional')}</Text>
+          <MarquePicker
+            value={marqueId}
+            onChange={id => setMarqueId(id)}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t('items.tags')}</Text>
+          <TagsMultiSelect
+            value={tags}
+            onChange={next => {
+              setTags(next);
+              setTagsTouched(true);
+            }}
           />
         </View>
 
@@ -396,7 +444,7 @@ export const ItemFormPanel: React.FC<ItemFormPanelProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     backgroundColor: '#FFF',
     borderBottomWidth: 1,

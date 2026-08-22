@@ -1,10 +1,13 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, I18nManager, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
+import type { AppTheme } from '../theme';
 import { setStoredLanguage, type AppLanguage } from '../i18n/languageStorage';
 
 export const LanguageSwitcher = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const { t, i18n } = useTranslation();
 
   const toggleLanguage = async () => {
@@ -33,7 +36,7 @@ export const LanguageSwitcher = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     paddingHorizontal: 12,
     paddingVertical: 6,

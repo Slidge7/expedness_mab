@@ -1,7 +1,13 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
 
-export const BASE_URL = 'http://localhost:7001';
+export const BASE_URL = API_BASE_URL;
+
+let cachedToken: string | null = null;
+
+export function setApiToken(token: string | null) {
+  cachedToken = token;
+}
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -10,11 +16,9 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(
-  async config => {
-    // Add JWT token
-    const token = await AsyncStorage.getItem('auth.token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  config => {
+    if (cachedToken) {
+      config.headers.Authorization = `Bearer ${cachedToken}`;
     }
 
     // CRITICAL: If Content-Type is undefined, delete it

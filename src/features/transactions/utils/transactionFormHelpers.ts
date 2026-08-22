@@ -1,4 +1,5 @@
 import { ItemDTO } from '../../items/api/itemService';
+import { getItemImageSmallUri } from '../../items/utils/itemImageUtils';
 import {
   DiscountType,
   TransactionItemDTO,
@@ -17,6 +18,17 @@ export function getItemDisplayName(
   return item.category || 'Item';
 }
 
+export function getItemImageUri(
+  item: TransactionItemDTO,
+  inventoryItems: ItemDTO[],
+): string | null {
+  if (item.itemId) {
+    const inv = inventoryItems.find(i => i.id === item.itemId);
+    if (inv) return getItemImageSmallUri(inv.imageSmall);
+  }
+  return null;
+}
+
 export function buildTransactionItems(
   cart: Record<string, TransactionItemDTO>,
   type: 'INCOME' | 'EXPENSE',
@@ -29,6 +41,8 @@ export function buildTransactionItems(
     category: item.category?.trim() || undefined,
     reason: item.reason,
     notes: item.notes,
+    discountType: item.discountType || null,
+    discountValue: item.discountValue != null && !Number.isNaN(item.discountValue) ? item.discountValue : null,
   }));
 }
 

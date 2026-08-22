@@ -16,14 +16,19 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch } from '../../../store/hooks';
 import { createItem } from '../../../store/itemSlice';
 import { fetchProviders } from '../../../store/providerSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { CategoryPicker } from '../../transactions/components/CategoryPicker';
 import { MultiProviderPicker } from '../../transactions/components/MultiProviderPicker';
+import { MarquePicker } from '../components/MarquePicker';
+import { TagsMultiSelect } from '../components/TagsMultiSelect';
 import { useTranslation } from 'react-i18next';
 import { translateTransactionType } from '../../../i18n/helpers';
 
 export const CreateItemScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
@@ -31,6 +36,8 @@ export const CreateItemScreen = () => {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tempImageFile, setTempImageFile] = useState<any>(null);
   const [providerIds, setProviderIds] = useState<number[]>([]);
+  const [marqueId, setMarqueId] = useState<number | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [providers, setProviders] = useState<{ id: number; label: string }[]>([]);
 
   React.useEffect(() => {
@@ -131,6 +138,8 @@ export const CreateItemScreen = () => {
             unit: form.unit.trim() || undefined,
             active: form.active,
             providerIds,
+            marqueId,
+            tags,
           },
           imageFile: tempImageFile ?? undefined,
         }),
@@ -292,6 +301,7 @@ export const CreateItemScreen = () => {
           <CategoryPicker
             value={form.category}
             onChange={name => setForm({ ...form, category: name })}
+            categoryTypeFilter={form.type.toLowerCase()}
           />
         </View>
 
@@ -302,6 +312,16 @@ export const CreateItemScreen = () => {
             onChange={setProviderIds}
             items={providers}
           />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t('items.marque_optional')}</Text>
+          <MarquePicker value={marqueId} onChange={setMarqueId} />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t('items.tags')}</Text>
+          <TagsMultiSelect value={tags} onChange={setTags} />
         </View>
 
         <View style={styles.inputGroup}>
@@ -361,7 +381,7 @@ export const CreateItemScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',

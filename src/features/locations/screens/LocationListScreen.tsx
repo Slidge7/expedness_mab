@@ -10,11 +10,14 @@ import {
   RefreshControl,
 } from 'react-native';
 import { locationService, LocationDTO } from '../api/locationService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 export const LocationListScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
 
@@ -105,7 +108,7 @@ export const LocationListScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   listContent: { padding: 16, paddingBottom: 100 },
   card: {

@@ -10,23 +10,20 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { locationService, LocationDTO } from '../api/locationService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
-const InfoRow = ({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | null;
-}) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue}>{value || '—'}</Text>
-  </View>
-);
-
 export const LocationDetailScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
+  const InfoRow = ({ label, value }: { label: string; value?: string | null }) => (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value || '—'}</Text>
+    </View>
+  );
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { t } = useTranslation();
@@ -107,7 +104,7 @@ export const LocationDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   title: { fontSize: 24, fontWeight: '700', color: '#1E293B' },
   subtitle: { fontSize: 14, color: '#64748B', marginTop: 6 },

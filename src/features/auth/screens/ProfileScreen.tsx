@@ -5,21 +5,26 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { logoutUser } from '../../../store/authSlice';
 import { confirmAction } from '../../../utils/confirmAction';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import { LanguageSwitcher } from '../../../components/LanguageSwitcher';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import type { AppTheme } from '../../../theme';
 
 export const ProfileScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
   const { t } = useTranslation();
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   const handleLogout = () => {
     confirmAction(
@@ -35,6 +40,16 @@ export const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+        >
+          <Ionicons name="menu" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>{t('nav.settings')}</Text>
+        <View style={styles.menuButtonSpacer} />
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
@@ -63,18 +78,31 @@ export const ProfileScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('nav.management')}</Text>
-
-          <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate('Management')}
-          >
-            <View style={styles.menuRowLeft}>
-              <Ionicons name="briefcase-outline" size={22} color={theme.colors.primary} />
-              <Text style={styles.menuLabel}>{t('nav.manage')}</Text>
+          <Text style={styles.sectionTitle}>{t('appearance.title')}</Text>
+          <View style={styles.themeRow}>
+            <View style={styles.themeLabel}>
+              <Ionicons
+                name={theme.isDark ? 'moon' : 'sunny'}
+                size={20}
+                color={theme.colors.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text style={styles.label}>{t('appearance.dark_mode')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-          </TouchableOpacity>
+            <Switch
+              value={theme.isDark}
+              onValueChange={theme.toggleTheme}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={'#FFFFFF'}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('language.switch_prompt')}</Text>
+          <View style={styles.languageRow}>
+            <LanguageSwitcher />
+          </View>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -85,64 +113,91 @@ export const ProfileScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F5F9' },
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  header: { alignItems: 'center', marginBottom: 30, marginTop: 10 },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-    elevation: 5,
-  },
-  avatarText: { fontSize: 28, color: '#FFF', fontWeight: 'bold' },
-  username: { fontSize: 22, fontWeight: '700', color: '#1E293B' },
-  role: { fontSize: 14, color: '#64748B', marginTop: 4 },
-  section: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#94A3B8',
-    marginBottom: 16,
-    textTransform: 'uppercase',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  label: { fontSize: 16, color: '#334155' },
-  value: { fontSize: 16, fontWeight: '600', color: '#0F172A' },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-  },
-  menuRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  menuLabel: { fontSize: 16, fontWeight: '600', color: '#334155' },
-  logoutButton: {
-    backgroundColor: '#FEF2F2',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-  },
-  logoutText: { color: '#DC2626', fontWeight: '700', fontSize: 16 },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    menuButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuButtonSpacer: {
+      width: 40,
+    },
+    topBarTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    scrollContent: { padding: 20, paddingBottom: 40 },
+    header: { alignItems: 'center', marginBottom: 30, marginTop: 10 },
+    avatarContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: theme.colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+      elevation: 5,
+    },
+    avatarText: { fontSize: 28, color: '#FFF', fontWeight: 'bold' },
+    username: { fontSize: 22, fontWeight: '700', color: theme.colors.text },
+    role: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
+    section: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+      marginBottom: 16,
+      textTransform: 'uppercase',
+    },
+    infoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    label: { fontSize: 16, color: theme.colors.text },
+    value: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
+    themeRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    themeLabel: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    languageRow: {
+      paddingVertical: 8,
+      alignItems: 'flex-start',
+    },
+    logoutButton: {
+      backgroundColor: theme.isDark ? '#450A0A' : '#FEF2F2',
+      padding: 18,
+      borderRadius: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.isDark ? '#7F1D1D' : '#FEE2E2',
+    },
+    logoutText: { color: theme.colors.danger, fontWeight: '700', fontSize: 16 },
+  });

@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native';
-import { theme } from '../../../theme';
+import type { AppTheme } from '../../../theme';
 
-export const managementStyles = StyleSheet.create({
-  panel: { flex: 1, backgroundColor: '#F1F5F9' },
+export const createManagementStyles = (theme: AppTheme) => StyleSheet.create({
+  panel: { flex: 1, backgroundColor: theme.colors.inputBg },
   listContent: { padding: 16, paddingBottom: 100 },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -21,21 +21,21 @@ export const managementStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  title: { fontSize: 17, fontWeight: '700', color: '#1E293B', flex: 1 },
-  subtitle: { fontSize: 14, color: '#64748B', marginBottom: 4 },
-  meta: { fontSize: 12, color: '#94A3B8' },
+  title: { fontSize: 17, fontWeight: '700', color: theme.colors.secondary, flex: 1 },
+  subtitle: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 4 },
+  meta: { fontSize: 12, color: theme.colors.textSecondary },
   badge: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: theme.colors.border,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     fontSize: 11,
-    color: '#475569',
+    color: theme.colors.textSecondary,
     overflow: 'hidden',
   },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   statusText: { fontSize: 10, fontWeight: '700' },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#94A3B8', paddingHorizontal: 24 },
+  emptyText: { textAlign: 'center', marginTop: 50, color: theme.colors.textSecondary, paddingHorizontal: 24 },
   fab: {
     position: 'absolute',
     bottom: 24,

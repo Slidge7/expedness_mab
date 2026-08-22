@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -8,7 +9,8 @@ import {
   StyleSheet,
   Modal,
 } from 'react-native';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { EntityOption } from './OptionalEntityPicker';
 
 interface Props {
@@ -26,6 +28,9 @@ export const MultiProviderPicker: React.FC<Props> = ({
   title = 'Providers',
   placeholder = 'Select providers (optional)',
 }) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -74,7 +79,7 @@ export const MultiProviderPicker: React.FC<Props> = ({
           <Text style={styles.sheetTitle}>{title}</Text>
           <TextInput
             style={styles.search}
-            placeholder="Search..."
+            placeholder={t('common.search_placeholder')}
             value={query}
             onChangeText={setQuery}
           />
@@ -103,11 +108,11 @@ export const MultiProviderPicker: React.FC<Props> = ({
               );
             }}
             ListEmptyComponent={
-              <Text style={styles.empty}>No providers available</Text>
+              <Text style={styles.empty}>{t('transactions.no_providers')}</Text>
             }
           />
           <TouchableOpacity style={styles.doneBtn} onPress={() => setOpen(false)}>
-            <Text style={styles.doneText}>Done</Text>
+            <Text style={styles.doneText}>{t('common.done')}</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -115,7 +120,7 @@ export const MultiProviderPicker: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',

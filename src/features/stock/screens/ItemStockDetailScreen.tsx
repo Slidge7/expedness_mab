@@ -18,12 +18,15 @@ import {
 import { fetchItemById } from '../../../store/itemSlice';
 import { stockService } from '../api/stockService';
 import { ItemDTO } from '../../items/api/itemService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 type AdjustMode = 'ADD' | 'REMOVE' | 'SET' | null;
 
 export const ItemStockDetailScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -226,7 +229,7 @@ export const ItemStockDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   content: { padding: 20, paddingBottom: 40 },

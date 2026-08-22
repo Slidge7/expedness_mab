@@ -19,16 +19,19 @@ import {
   ensureDemoAccountRegistered,
   ensureDemoStockData,
 } from '../demoSeedService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 
 // REDUX IMPORTS
 import { useAppDispatch } from '../../../store/hooks';
 import { loginSuccess } from '../../../store/authSlice';
 
 export const LoginScreen = () => {
+  const theme = useTheme();
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
+  const styles = createStyles(theme);
 
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
@@ -42,7 +45,8 @@ export const LoginScreen = () => {
 
     setLoading(true);
     try {
-      await performLogin(username, password);
+      const data = await authService.login({ username, password });
+      await dispatch(loginSuccess(data));
     } catch (error: any) {
       console.log('Login Error:', error);
       const msg =
@@ -57,11 +61,6 @@ export const LoginScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const performLogin = async (user: string, pass: string) => {
-    const data = await authService.login({ username: user, password: pass });
-    await dispatch(loginSuccess(data));
   };
 
   const handleDemoLogin = async () => {
@@ -121,7 +120,7 @@ export const LoginScreen = () => {
             style={styles.input}
             value={username}
             onChangeText={setUsername}
-            placeholder="jdo2e"
+            placeholder={t('auth.username')}
             autoCapitalize="none"
           />
 
@@ -180,7 +179,7 @@ export const LoginScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -212,7 +211,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.m,
     fontSize: 16,
     color: theme.colors.text,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.inputBg,
   },
   button: {
     height: 48,

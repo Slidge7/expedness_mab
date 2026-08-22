@@ -1,6 +1,7 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthResponse } from '../features/auth/types';
+import { setApiToken } from '../api/client';
 
 // Define the State Shape
 interface AuthState {
@@ -69,8 +70,12 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.user = action.payload.user;
         state.isAuthenticated = true;
+        setApiToken(action.payload.token);
       }
       state.isHydrated = true; // App is ready to render
+    });
+    builder.addCase(loadUserSession.rejected, state => {
+      state.isHydrated = true;
     });
 
     // Login
@@ -82,6 +87,7 @@ const authSlice = createSlice({
       };
       state.token = action.payload.token;
       state.isAuthenticated = true;
+      setApiToken(action.payload.token);
     });
 
     // Logout
@@ -89,6 +95,7 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      setApiToken(null);
     });
   },
 });

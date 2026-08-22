@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchStockItems } from '../../../store/stockSlice';
 import { ItemDTO } from '../../items/api/itemService';
-import { theme } from '../../../theme';
+import { getItemImageSmallUri } from '../../items/utils/itemImageUtils';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 function isLowStock(item: ItemDTO): boolean {
@@ -21,19 +24,24 @@ function isLowStock(item: ItemDTO): boolean {
 }
 
 export const StockListScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const isFocused = useIsFocused();
+  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
   const { t } = useTranslation();
   const { stockItems, loading } = useAppSelector(state => state.stock);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    if (!isAuthenticated) return;
     await dispatch(fetchStockItems());
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (isFocused) load();
+  }, [isFocused, load]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -47,37 +55,52 @@ export const StockListScreen = () => {
 
   const renderItem = ({ item }: { item: ItemDTO }) => {
     const low = isLowStock(item);
+    const imageUri = getItemImageSmallUri(item.imageSmall);
     return (
       <TouchableOpacity
         style={styles.card}
         onPress={() => handlePress(item)}
         activeOpacity={0.7}
       >
-        <View style={styles.cardHeader}>
-          <Text style={styles.itemName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {low && (
-            <View style={styles.lowBadge}>
-              <Text style={styles.lowBadgeText}>{t('stock.low')}</Text>
+        <View style={styles.cardRow}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.thumb} />
+          ) : (
+            <View style={[styles.thumb, styles.thumbPlaceholder]}>
+              <Text style={styles.thumbLetter}>
+                {item.name.charAt(0).toUpperCase()}
+              </Text>
             </View>
           )}
-        </View>
 
-        <Text style={styles.category} numberOfLines={1}>
-          {item.category || t('items.uncategorized')}
-          {item.unit ? ` · ${item.unit}` : ''}
-        </Text>
+          <View style={styles.cardBody}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.itemName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              {low && (
+                <View style={styles.lowBadge}>
+                  <Text style={styles.lowBadgeText}>{t('stock.low')}</Text>
+                </View>
+              )}
+            </View>
 
-        <View style={styles.stockRow}>
-          <Text style={[styles.stockQty, low && styles.stockQtyLow]}>
-            {item.currentStock ?? 0}
-          </Text>
-          {item.minStock != null && (
-            <Text style={styles.minStock}>
-              {t('stock.min_value', { value: item.minStock })}
+            <Text style={styles.category} numberOfLines={1}>
+              {item.category || t('items.uncategorized')}
+              {item.unit ? ` · ${item.unit}` : ''}
             </Text>
-          )}
+
+            <View style={styles.stockRow}>
+              <Text style={[styles.stockQty, low && styles.stockQtyLow]}>
+                {item.currentStock ?? 0}
+              </Text>
+              {item.minStock != null && (
+                <Text style={styles.minStock}>
+                  {t('stock.min_value', { value: item.minStock })}
+                </Text>
+              )}
+            </View>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -117,20 +140,43 @@ export const StockListScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { padding: 16, paddingBottom: 32 },
   card: {
     backgroundColor: '#FFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  thumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  thumbPlaceholder: {
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbLetter: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  cardBody: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',

@@ -16,10 +16,13 @@ import {
   ProviderDTO,
   ContactDTO,
 } from '../api/providerService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 export const ProviderDetailScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const route = useRoute<any>();
@@ -48,7 +51,7 @@ export const ProviderDetailScreen = () => {
       setProvider(providerData);
       setContacts(contactData);
     } catch (e) {
-      Alert.alert(t('common.error'), 'Failed to load provider details.');
+      Alert.alert(t('common.error'), t('providers.load_details_error'));
     } finally {
       setLoading(false);
     }
@@ -78,7 +81,7 @@ export const ProviderDetailScreen = () => {
 
   const saveContact = async () => {
     if (!contactForm.name.trim()) {
-      Alert.alert(t('common.error'), 'Contact name is required');
+      Alert.alert(t('common.error'), t('providers.contact_name_required'));
       return;
     }
     try {
@@ -94,7 +97,7 @@ export const ProviderDetailScreen = () => {
       setModalOpen(false);
       await loadData();
     } catch (e) {
-      Alert.alert(t('common.error'), 'Failed to save contact.');
+      Alert.alert(t('common.error'), t('providers.save_contact_error'));
     }
   };
 
@@ -112,7 +115,7 @@ export const ProviderDetailScreen = () => {
               await providerService.delete(providerId);
               navigation.goBack();
             } catch {
-              Alert.alert(t('common.error'), 'Failed to delete provider.');
+              Alert.alert(t('common.error'), t('providers.delete_provider_error'));
             }
           },
         },
@@ -131,7 +134,7 @@ export const ProviderDetailScreen = () => {
             await providerService.deleteContact(providerId, contact.id!);
             await loadData();
           } catch (e) {
-            Alert.alert(t('common.error'), 'Failed to delete contact.');
+            Alert.alert(t('common.error'), t('providers.delete_contact_error'));
           }
         },
       },
@@ -236,7 +239,7 @@ export const ProviderDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   title: { fontSize: 24, fontWeight: '700', color: '#1E293B' },
   subtitle: { fontSize: 16, color: '#64748B', marginTop: 4 },

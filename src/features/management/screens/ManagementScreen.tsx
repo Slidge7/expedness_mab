@@ -10,6 +10,10 @@ import { ProvidersPanel } from '../components/ProvidersPanel';
 import { MissionsPanel } from '../components/MissionsPanel';
 import { LocationsPanel } from '../components/LocationsPanel';
 import { StockPanel } from '../components/StockPanel';
+import { MarquesPanel } from '../components/MarquesPanel';
+import { CategoriesPanel } from '../components/CategoriesPanel';
+import { CatalogsPanel } from '../components/CatalogsPanel';
+import { ItemsPanel } from '../components/ItemsPanel';
 
 export const ManagementScreen = () => {
   const [tab, setTab] = useState<ManagementTab>('clients');
@@ -22,7 +26,11 @@ export const ManagementScreen = () => {
       {tab === 'providers' && <ProvidersPanel isActive={isFocused} />}
       {tab === 'missions' && <MissionsPanel isActive={isFocused} />}
       {tab === 'locations' && <LocationsPanel isActive={isFocused} />}
+      {tab === 'marques' && <MarquesPanel isActive={isFocused} />}
+      {tab === 'categories' && <CategoriesPanel isActive={isFocused} />}
+      {tab === 'items' && <ItemsPanel isActive={isFocused} />}
       {tab === 'stock' && <StockPanel />}
+      {tab === 'catalogs' && <CatalogsPanel isActive={isFocused} />}
     </View>
   );
 };

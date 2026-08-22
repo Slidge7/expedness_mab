@@ -16,10 +16,13 @@ import {
   ClientDTO,
   ContactDTO,
 } from '../api/clientService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 export const ClientDetailScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const route = useRoute<any>();
@@ -48,7 +51,7 @@ export const ClientDetailScreen = () => {
       setClient(clientData);
       setContacts(contactData);
     } catch (e) {
-      Alert.alert(t('common.error'), 'Failed to load client details.');
+      Alert.alert(t('common.error'), t('clients.load_details_error'));
     } finally {
       setLoading(false);
     }
@@ -78,7 +81,7 @@ export const ClientDetailScreen = () => {
 
   const saveContact = async () => {
     if (!contactForm.name.trim()) {
-      Alert.alert(t('common.error'), 'Contact name is required');
+      Alert.alert(t('common.error'), t('clients.contact_name_required'));
       return;
     }
     try {
@@ -90,7 +93,7 @@ export const ClientDetailScreen = () => {
       setModalOpen(false);
       await loadData();
     } catch (e) {
-      Alert.alert(t('common.error'), 'Failed to save contact.');
+      Alert.alert(t('common.error'), t('clients.save_contact_error'));
     }
   };
 
@@ -105,7 +108,7 @@ export const ClientDetailScreen = () => {
             await clientService.delete(clientId);
             navigation.goBack();
           } catch {
-            Alert.alert(t('common.error'), 'Failed to delete client.');
+            Alert.alert(t('common.error'), t('clients.delete_client_error'));
           }
         },
       },
@@ -123,7 +126,7 @@ export const ClientDetailScreen = () => {
             await clientService.deleteContact(clientId, contact.id!);
             await loadData();
           } catch (e) {
-            Alert.alert(t('common.error'), 'Failed to delete contact.');
+            Alert.alert(t('common.error'), t('clients.delete_contact_error'));
           }
         },
       },
@@ -224,7 +227,7 @@ export const ClientDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   title: { fontSize: 24, fontWeight: '700', color: '#1E293B' },
   subtitle: { fontSize: 16, color: '#64748B', marginTop: 4 },

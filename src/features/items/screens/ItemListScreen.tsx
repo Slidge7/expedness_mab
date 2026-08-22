@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,34 +9,41 @@ import {
   RefreshControl,
   Image,
   TextInput,
-  Dimensions,
+  useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchItems } from '../../../store/itemSlice';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { ItemDTO, TransactionType } from '../api/itemService';
 import { useTranslation } from 'react-i18next';
 import { translateTransactionType } from '../../../i18n/helpers';
 import { CollapsibleItemForm } from '../components/CollapsibleItemForm';
 import { DEFAULT_ITEM_CATEGORY } from '../constants';
-
-const { width } = Dimensions.get('window');
+import { getItemImageSmallUri } from '../utils/itemImageUtils';
+import { marqueService, MarqueDTO } from '../../marques/api/marqueService';
 
 type ViewMode = 'list' | 'grid';
 
 interface ItemListScreenProps {
   fixedType?: 'INCOME' | 'EXPENSE';
   isActive?: boolean;
+  showMarqueCategoryFilters?: boolean;
 }
 
 export const ItemListScreen = ({
   fixedType,
   isActive = true,
+  showMarqueCategoryFilters = false,
 }: ItemListScreenProps = {}) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
   const { items, loading } = useAppSelector(state => state.items);
 
   const formatCategory = (category?: string) => {
@@ -49,6 +56,9 @@ export const ItemListScreen = ({
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>(
     fixedType ?? 'ALL',
   );
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterMarqueId, setFilterMarqueId] = useState<number | null>(null);
+  const [marques, setMarques] = useState<MarqueDTO[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [formExpanded, setFormExpanded] = useState(false);
   const [editingItem, setEditingItem] = useState<ItemDTO | null>(null);
@@ -64,20 +74,67 @@ export const ItemListScreen = ({
     if (isActive) dispatch(fetchItems());
   }, [dispatch, isActive]);
 
+  const loadMarques = useCallback(async () => {
+    if (!showMarqueCategoryFilters) return;
+    try {
+      setMarques(await marqueService.getAll());
+    } catch {
+      // filters still work from item marque titles
+    }
+  }, [showMarqueCategoryFilters]);
+
+  useEffect(() => {
+    if (isActive && showMarqueCategoryFilters) loadMarques();
+  }, [isActive, showMarqueCategoryFilters, loadMarques]);
+
+  const categoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    items.forEach(item => {
+      cats.add(item.category?.trim() || DEFAULT_ITEM_CATEGORY);
+    });
+    return Array.from(cats).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const marqueOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    marques.forEach(m => {
+      if (m.id != null) map.set(m.id, m.title);
+    });
+    items.forEach(item => {
+      if (item.marqueId != null && item.marqueTitle) {
+        map.set(item.marqueId, item.marqueTitle);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [items, marques]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await dispatch(fetchItems());
+    if (showMarqueCategoryFilters) await loadMarques();
     setRefreshing(false);
   };
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    const effectiveType = fixedType ?? filterType;
-    const matchesType = effectiveType === 'ALL' || item.type === effectiveType;
-    return matchesSearch && matchesType;
-  });
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        item.name.toLowerCase().includes(q) ||
+        item.category?.toLowerCase().includes(q) ||
+        item.marqueTitle?.toLowerCase().includes(q) ||
+        item.tags?.some(tag => tag.toLowerCase().includes(q));
+      const effectiveType = fixedType ?? filterType;
+      const matchesType = effectiveType === 'ALL' || item.type === effectiveType;
+      const itemCategory = item.category?.trim() || DEFAULT_ITEM_CATEGORY;
+      const matchesCategory =
+        !filterCategory || itemCategory === filterCategory;
+      const matchesMarque =
+        filterMarqueId == null || item.marqueId === filterMarqueId;
+      return matchesSearch && matchesType && matchesCategory && matchesMarque;
+    });
+  }, [items, searchQuery, filterType, fixedType, filterCategory, filterMarqueId]);
 
   const openCreateForm = () => {
     setEditingItem(null);
@@ -107,7 +164,9 @@ export const ItemListScreen = ({
     navigation.navigate('ItemDetail', { itemId: item.id });
   };
 
-  const renderListItem = ({ item }: { item: ItemDTO }) => (
+  const renderListItem = ({ item }: { item: ItemDTO }) => {
+    const imageUri = getItemImageSmallUri(item.imageSmall);
+    return (
     <TouchableOpacity
       style={styles.listCard}
       onPress={() => handleItemPress(item)}
@@ -116,9 +175,9 @@ export const ItemListScreen = ({
       <View style={styles.listCardContent}>
         {/* Image */}
         <View style={styles.listImageContainer}>
-          {item.imageSmall ? (
+          {imageUri ? (
             <Image
-              source={{ uri: `data:image/jpeg;base64,${item.imageSmall}` }}
+              source={{ uri: imageUri }}
               style={styles.listImage}
               resizeMode="cover"
             />
@@ -142,7 +201,7 @@ export const ItemListScreen = ({
                 styles.typeBadge,
                 {
                   backgroundColor:
-                    item.type === 'INCOME' ? '#D1FAE5' : '#FEE2E2',
+                    item.type === 'INCOME' ? theme.colors.successLight : theme.colors.dangerLight,
                 },
               ]}
             >
@@ -160,7 +219,14 @@ export const ItemListScreen = ({
           <Text style={styles.listCategory} numberOfLines={1}>
             {formatCategory(item.category)}{' '}
             {item.unit ? `• ${item.unit}` : ''}
+            {item.marqueTitle ? ` • ${item.marqueTitle}` : ''}
           </Text>
+
+          {item.tags && item.tags.length > 0 && (
+            <Text style={styles.listTags} numberOfLines={1}>
+              {item.tags.join(' · ')}
+            </Text>
+          )}
 
           <View style={styles.listFooter}>
             <Text style={styles.listPrice}>${item.unitPrice?.toFixed(2)}</Text>
@@ -190,19 +256,22 @@ export const ItemListScreen = ({
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
-  const renderGridItem = ({ item }: { item: ItemDTO }) => (
+  const renderGridItem = ({ item }: { item: ItemDTO }) => {
+    const imageUri = getItemImageSmallUri(item.imageSmall);
+    return (
     <TouchableOpacity
-      style={styles.gridCard}
+      style={[styles.gridCard, { width: (width - 48) / 2 }]}
       onPress={() => handleItemPress(item)}
       activeOpacity={0.7}
     >
       {/* Image */}
       <View style={styles.gridImageContainer}>
-        {item.imageSmall ? (
+        {imageUri ? (
           <Image
-            source={{ uri: `data:image/jpeg;base64,${item.imageSmall}` }}
+            source={{ uri: imageUri }}
             style={styles.gridImage}
             resizeMode="cover"
           />
@@ -234,6 +303,7 @@ export const ItemListScreen = ({
         </Text>
         <Text style={styles.gridCategory} numberOfLines={1}>
           {formatCategory(item.category)}
+          {item.marqueTitle ? ` • ${item.marqueTitle}` : ''}
         </Text>
         <Text style={styles.gridPrice}>${item.unitPrice?.toFixed(2)}</Text>
 
@@ -244,7 +314,8 @@ export const ItemListScreen = ({
         )}
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -258,7 +329,7 @@ export const ItemListScreen = ({
             placeholder={t('items.search_placeholder')}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={theme.colors.textSecondary}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -314,6 +385,98 @@ export const ItemListScreen = ({
             </TouchableOpacity>
           </View>
         </View>
+
+        {showMarqueCategoryFilters && categoryOptions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+          >
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                !filterCategory && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterCategory(null)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  !filterCategory && styles.filterChipTextActive,
+                ]}
+              >
+                {t('management.all_categories')}
+              </Text>
+            </TouchableOpacity>
+            {categoryOptions.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[
+                  styles.filterChip,
+                  filterCategory === cat && styles.filterChipActive,
+                ]}
+                onPress={() =>
+                  setFilterCategory(filterCategory === cat ? null : cat)
+                }
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    filterCategory === cat && styles.filterChipTextActive,
+                  ]}
+                >
+                  {formatCategory(cat)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {showMarqueCategoryFilters && marqueOptions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+          >
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterMarqueId == null && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterMarqueId(null)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterMarqueId == null && styles.filterChipTextActive,
+                ]}
+              >
+                {t('management.all_marques')}
+              </Text>
+            </TouchableOpacity>
+            {marqueOptions.map(m => (
+              <TouchableOpacity
+                key={m.id}
+                style={[
+                  styles.filterChip,
+                  filterMarqueId === m.id && styles.filterChipActive,
+                ]}
+                onPress={() =>
+                  setFilterMarqueId(filterMarqueId === m.id ? null : m.id)
+                }
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    filterMarqueId === m.id && styles.filterChipTextActive,
+                  ]}
+                >
+                  {m.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       <CollapsibleItemForm
@@ -331,62 +494,65 @@ export const ItemListScreen = ({
         onCancel={closeForm}
       />
 
-      {/* Items List/Grid */}
-      {loading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      ) : filteredItems.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📦</Text>
-          <Text style={styles.emptyText}>{t('items.no_items_found')}</Text>
-          <Text style={styles.emptySubtext}>
-            {searchQuery
-              ? t('items.adjust_search')
-              : t('items.create_first')}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={item => item.id?.toString() || Math.random().toString()}
-          renderItem={viewMode === 'list' ? renderListItem : renderGridItem}
-          numColumns={viewMode === 'grid' ? 2 : 1}
-          key={viewMode} // Force re-render when changing view mode
-          contentContainerStyle={styles.listContent}
-          columnWrapperStyle={viewMode === 'grid' ? styles.gridRow : undefined}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-            />
-          }
-        />
-      )}
+      {/* Items List/Grid — hidden while form is open so create/edit can scroll */}
+      {!formExpanded &&
+        (loading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        ) : filteredItems.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📦</Text>
+            <Text style={styles.emptyText}>{t('items.no_items_found')}</Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? t('items.adjust_search')
+                : t('items.create_first')}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredItems}
+            keyExtractor={(item, index) =>
+              item.id?.toString() ?? `fallback-${index}`
+            }
+            renderItem={viewMode === 'list' ? renderListItem : renderGridItem}
+            numColumns={viewMode === 'grid' ? 2 : 1}
+            key={viewMode}
+            contentContainerStyle={styles.listContent}
+            columnWrapperStyle={viewMode === 'grid' ? styles.gridRow : undefined}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[theme.colors.primary]}
+              />
+            }
+          />
+        ))}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
 
   // Header Controls
   headerControls: {
-    backgroundColor: '#FFF',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: theme.colors.border,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.inputBg,
     borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 12,
@@ -396,11 +562,11 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1E293B',
+    color: theme.colors.secondary,
   },
   clearIcon: {
     fontSize: 18,
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
     paddingHorizontal: 8,
   },
 
@@ -429,6 +595,29 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   filterBtnTextActive: {
+    color: '#FFF',
+  },
+
+  filterChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  filterChipActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  filterChipTextActive: {
     color: '#FFF',
   },
 
@@ -534,6 +723,11 @@ const styles = StyleSheet.create({
   listCategory: {
     fontSize: 14,
     color: '#64748B',
+    marginBottom: 4,
+  },
+  listTags: {
+    fontSize: 12,
+    color: '#94A3B8',
     marginBottom: 8,
   },
   listFooter: {
@@ -582,7 +776,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 16,
     marginBottom: 16,
-    width: (width - 48) / 2,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

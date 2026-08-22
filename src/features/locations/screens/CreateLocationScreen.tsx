@@ -16,10 +16,13 @@ import { fetchProviders } from '../../../store/providerSlice';
 import { locationService } from '../api/locationService';
 import { OptionalClientPicker } from '../../transactions/components/OptionalClientPicker';
 import { OptionalProviderPicker } from '../../transactions/components/OptionalProviderPicker';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 export const CreateLocationScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
@@ -157,7 +160,7 @@ export const CreateLocationScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   label: {
     fontSize: 14,

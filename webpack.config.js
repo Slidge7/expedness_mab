@@ -1,13 +1,15 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const appDirectory = __dirname;
+const isDev = process.env.NODE_ENV !== 'production';
 
-module.exports = {
-  entry: path.join(appDirectory, 'index.web.js'),
+module.exports = {  entry: path.join(appDirectory, 'index.web.js'),
   output: {
     filename: 'bundle.web.js',
     path: path.resolve(appDirectory, 'web-build'),
+    publicPath: '/',
   },
   experiments: {
     topLevelAwait: true,
@@ -38,6 +40,10 @@ module.exports = {
         appDirectory,
         'src/web-stubs/react-native-image-picker.ts',
       ),
+      'react-native-reanimated': path.resolve(
+        appDirectory,
+        'src/web-stubs/react-native-reanimated.tsx',
+      ),
       '@react-native-async-storage/async-storage': path.resolve(
         appDirectory,
         'node_modules/@react-native-async-storage/async-storage/lib/commonjs/index.js',
@@ -57,7 +63,7 @@ module.exports = {
       {
         test: /\.(js|jsx|ts|tsx)$/,
         exclude:
-          /node_modules\/(?!(react-native|react-native-web|@react-navigation|react-native-safe-area-context|react-native-screens|@react-native-async-storage|@react-native-picker|react-native-vector-icons|@reduxjs|react-redux|axios)\/).*/,
+          /node_modules\/(?!(react-native|react-native-web|@react-navigation|react-native-safe-area-context|react-native-screens|react-native-gesture-handler|react-native-reanimated|@react-native-async-storage|@react-native-picker|react-native-vector-icons|@reduxjs|react-redux|axios)\/).*/,
         use: {
           loader: 'babel-loader',
           options: {
@@ -88,14 +94,17 @@ module.exports = {
     ],
   },
   plugins: [
+    new webpack.DefinePlugin({
+      __DEV__: JSON.stringify(isDev),
+      'process.env.NODE_ENV': JSON.stringify(isDev ? 'development' : 'production'),
+    }),
     new HtmlWebpackPlugin({
       template: path.join(appDirectory, 'web/index.html'),
     }),
   ],
-  devServer: {
-    port: 3000,
+  devServer: {    port: 3000,
     hot: true,
     historyApiFallback: true,
   },
-  mode: 'development',
+  mode: isDev ? 'development' : 'production',
 };

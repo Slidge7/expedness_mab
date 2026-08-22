@@ -11,10 +11,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { providerService } from '../api/providerService';
-import { theme } from '../../../theme';
+import { useTheme } from '../../../theme/ThemeContext';
+import type { AppTheme } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
 export const CreateProviderScreen = () => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -28,14 +31,14 @@ export const CreateProviderScreen = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert(t('common.error'), 'Name is required');
+      Alert.alert(t('common.error'), t('providers.name_required'));
       return;
     }
 
     setLoading(true);
     try {
       await providerService.create(form);
-      Alert.alert(t('common.success'), 'Provider created successfully!');
+      Alert.alert(t('common.success'), t('providers.create_success'));
       navigation.goBack();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || 'Check your backend connection');
@@ -51,7 +54,7 @@ export const CreateProviderScreen = () => {
         style={styles.input}
         value={form.name}
         onChangeText={text => setForm({ ...form, name: text })}
-        placeholder="Provider name"
+        placeholder={t('providers.name_placeholder')}
       />
 
       <Text style={styles.label}>{t('common.company')}</Text>
@@ -59,7 +62,7 @@ export const CreateProviderScreen = () => {
         style={styles.input}
         value={form.company}
         onChangeText={text => setForm({ ...form, company: text })}
-        placeholder="Legal or display name"
+        placeholder={t('providers.display_name_placeholder')}
       />
 
       <Text style={styles.label}>{t('common.description')}</Text>
@@ -67,7 +70,7 @@ export const CreateProviderScreen = () => {
         style={styles.input}
         value={form.description}
         onChangeText={text => setForm({ ...form, description: text })}
-        placeholder="Optional notes"
+        placeholder={t('providers.notes_placeholder')}
         multiline
       />
 
@@ -76,7 +79,7 @@ export const CreateProviderScreen = () => {
         style={styles.input}
         value={form.city}
         onChangeText={text => setForm({ ...form, city: text })}
-        placeholder="City"
+        placeholder={t('providers.city_placeholder')}
       />
 
       <Text style={styles.label}>{t('common.address')}</Text>
@@ -84,7 +87,7 @@ export const CreateProviderScreen = () => {
         style={styles.input}
         value={form.address}
         onChangeText={text => setForm({ ...form, address: text })}
-        placeholder="Street address"
+        placeholder={t('providers.address_placeholder')}
         multiline
       />
 
@@ -103,7 +106,7 @@ export const CreateProviderScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   label: {
     fontSize: 14,
